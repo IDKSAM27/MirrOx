@@ -1,6 +1,7 @@
 # Mirror + Oxidation
 
-scrcpy-rs/  
+```
+mirrox/  
 │── src/  
 │   ├── main.rs               # Entry point  
 │   ├── adb.rs                # ADB communication  
@@ -13,3 +14,4 @@ scrcpy-rs/
 │   └── utils.rs              # Helper functions  
 │── Cargo.toml                # Dependencies & metadata  
 │── README.md                 # Documentation  
+```
