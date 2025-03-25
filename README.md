@@ -1,6 +1,6 @@
 # Mirror + Oxidation
 
-```
+```graphql
 mirrox/  
 │── src/  
 │   ├── main.rs               # Entry point  
