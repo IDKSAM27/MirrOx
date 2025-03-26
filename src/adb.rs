@@ -6,6 +6,7 @@ pub struct AdbDevice {
     pub id: String,
     pub state: String,
     pub connection_type: String, // USB or TCP
+    pub model: String, // Device model name
 }
 
 // Checks if ADB is installed and accessible.
@@ -39,21 +40,18 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
         // Parse ADB output
         for line in output_str.lines().skip(1) { // Skip "List of devices attached"
             let parts: Vec<&str> = line.split_whitespace().collect();
+            
             if parts.len() == 2 {
                 let device_id = parts[0].to_string();
                 let state = parts[1].to_string();
-
-                // Determine connection type
-                let connection_type = if device_id.contains(':') {
-                    "TCP" // Device ID contains ":" → It's a TCP (wireless) device
-                } else {
-                    "USB" // Otherwise, it's a USB device
-                };
+                let connection_type = if device_id.contains(':') { "TCP" } else { "USB" };
+                let model = run_shell_command(&device_id, "getprop ro.product.model").unwrap_or("Unknown".to_string());
 
                 devices.push(AdbDevice {
                     id: device_id,
                     state,
                     connection_type: connection_type.to_string(),
+                    model,
                 });
             }
         }
@@ -68,4 +66,22 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
     }
 }
 
+// Runs an ADB shell command on a specific device.
+pub fn run_shell_command(device_id: &str, command: &str) -> Result<String, String> {
+    let output = Command::new("adb")
+        .arg("-s")
+        .arg(device_id)
+        .arg("shell")
+        .arg(command)
+        .output()
+        .map_err(|e| format!("Failed to execute adb shell command: {}", e))?;
+
+    if output.status.success() {
+        let result = String::from_utf8_lossy(&output.stdout).to_string();
+        Ok(result.trim().to_string()) // Trim whitespaces
+    } else {
+        let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
+        Err(format!("ADB shell command failed: {}", error_msg))
+    }
+}
 

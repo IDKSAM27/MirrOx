@@ -15,3 +15,12 @@ if let Err(e) = adb::check_adb() {
     println!("ADB is available)
 }
 
+
+Shell Commands
+--------------
+Command	Description
+"uptime"    Total uptime of the device(s) connected
+"ls /sdcard"	List files on the device’s internal storage
+"pm list packages"	List installed apps
+"dumpsys battery"	Get battery status
+"getprop ro.build.version.release"	Get Android version
