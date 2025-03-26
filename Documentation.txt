@@ -1,0 +1,17 @@
+STUFF: 
+
+match
+-----
+match is a control flow operator used for pattern matching. It works similarily to switch in C++,
+used to match complex patterns, including enums, results, and custom types.
+Ok(_) : _ means ignore the value
+Err(e) : e captures the error message and prints it
+
+It is equivalent to using 'if let'
+
+if let Err(e) = adb::check_adb() {
+    eprintln!("Error : {}", e);
+} else {
+    println!("ADB is available)
+}
+
