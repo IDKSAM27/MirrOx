@@ -7,6 +7,7 @@ pub struct AdbDevice {
     pub state: String,
     pub connection_type: String, // USB or TCP
     pub model: String, // Device model name
+    pub uptime: String,
 }
 
 // Checks if ADB is installed and accessible.
@@ -46,12 +47,14 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
                 let state = parts[1].to_string();
                 let connection_type = if device_id.contains(':') { "TCP" } else { "USB" };
                 let model = run_shell_command(&device_id, "getprop ro.product.model").unwrap_or("Unknown".to_string());
+                let uptime = run_shell_command(&device_id, "uptime").unwrap_or("Unknown".to_string());
 
                 devices.push(AdbDevice {
                     id: device_id,
                     state,
                     connection_type: connection_type.to_string(),
                     model,
+                    uptime: uptime.to_string(),
                 });
             }
         }
