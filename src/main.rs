@@ -16,8 +16,8 @@ fn main() {
         Ok(devices) => {
             println!("Connected devices:");
             for device in &devices {
-                println!("- {} ({}) [{}] - Model: {}", device.id, device.state, device.connection_type, device.model);
-                println!("Device {} Uptime: {}", device.id, device.uptime);
+                println!("- {} ({}) [{}] | Manufacturer: {} | Model: {}", device.id, device.state, device.connection_type, device.manufacture, device.model);
+                println!("Device: {} | Battery: {} | Uptime: {}", device.model, device.battery_level, device.uptime);
             }
 
             // Example: Run a shell command on the first device
