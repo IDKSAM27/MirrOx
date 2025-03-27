@@ -24,3 +24,39 @@ Command	Description
 "pm list packages"	List installed apps
 "dumpsys battery"	Get battery status
 "getprop ro.build.version.release"	Get Android version
+
+
+==========================================================================================================
+Starting MirrOx...
+ADB Version: Android Debug Bridge version 1.0.41
+Version 35.0.2-12147458
+Installed as C:\scrcpy\adb.exe
+Running on Windows 10.0.26120
+
+Connected devices:
+- 13725638470015P (device) [USB] | Manufacturer: vivo | Model: V2059
+Device: V2059 | Battery: Current Battery Service state:
+  AC powered: false
+  USB powered: true
+  Wireless powered: false
+  Max charging current: 0
+  Max charging voltage: 0
+  Charge counter: 1606000
+  engine: 0
+  soc decimal: 0
+  adapter power: 0
+  board temp status: 0
+  low bat status: 0
+  reverse wl chg status: 0
+  reverse wl chg exception: 0
+  chg shut vbat: 3200
+  status: 2
+  health: 2
+  present: true
+  level: 86
+  scale: 100
+  voltage: 4367
+  temperature: 315
+  technology: Li-poly | Uptime: 23:07:42 up 24 days,  8:07,  0 users,  load average: 22.00, 21.68, 21.78
+PS D:\Projects\MirrOx> 
+==========================================================================================================

@@ -1,4 +1,4 @@
-mod utils;
+use crate::utils::extract_battery_level;
 
 use std::process::Command;
 
@@ -40,7 +40,7 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
 
     if output.status.success() {
         let output_str = String::from_utf8_lossy(&output.stdout);
-        let mut devices = Vec::new();let battery_level = extract_battery_level(&battery_info); // extract_battery_level() is in utils.rs_levelbattery_level
+        let mut devices = Vec::new();
 
         // Parse ADB output
         for line in output_str.lines().skip(1) { // Skip "List of devices attached"
@@ -54,7 +54,7 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
                 let model = run_shell_command(&device_id, "getprop ro.product.model").unwrap_or("Unknown".to_string());
                 let uptime = run_shell_command(&device_id, "uptime").unwrap_or("Unknown".to_string());
                 let battery_info = run_shell_command(&device_id, "dumpsys battery").unwrap_or("Unknown".to_string());
-                let battery_level = utils::extract_battery_level(&battery_info); // extract_battery_level() is in utils.rs
+                let battery_level = extract_battery_level(&battery_info); // extract_battery_level() is in utils.rs
 
                 devices.push(AdbDevice {
                     id: device_id,
@@ -96,4 +96,3 @@ pub fn run_shell_command(device_id: &str, command: &str) -> Result<String, Strin
         Err(format!("ADB shell command failed: {}", error_msg))
     }
 }
-
