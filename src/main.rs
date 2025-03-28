@@ -17,7 +17,7 @@ fn main() {
             println!("Connected devices:");
             for device in &devices {
                 println!("- {} ({}) [{}] | Manufacturer: {} | Model: {}", device.id, device.state, device.connection_type, device.manufacture, device.model);
-                println!("Device: {} | Battery: {}% | Uptime: {}", device.model, device.battery_level, device.uptime); //device.battery_level
+                println!("Device: {} | Battery: {}% | Uptime: {}", device.model, device.battery_level, device.uptime); 
             }
         }
         Err(e) => eprintln!("Error: {}", e),
