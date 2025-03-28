@@ -1,4 +1,4 @@
-use crate::utils::extract_battery_level;
+use crate::utils::*;
 
 use std::process::Command;
 
