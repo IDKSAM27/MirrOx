@@ -1,3 +1,5 @@
+use std::fs;
+use std::path::Path;
 use crate::utils::*;
 
 use std::process::Command;
@@ -78,6 +80,34 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
     }
 }
 
+/// Gets the list of connected ADB devices.
+pub fn get_connected_devices() -> Result<Vec<String>, String> {
+    let output = Command::new("adb")
+        .arg("devices")
+        .output()
+        .map_err(|e| format!("Failed to execute adb: {}", e))?;
+
+    if output.status.success() {
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        let mut devices = Vec::new();
+
+        for line in output_str.lines().skip(1) { // Skip "List of devices attached"
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() == 2 && parts[1] == "device" {
+                devices.push(parts[0].to_string());
+            }
+        }
+
+        if devices.is_empty() {
+            Err("No devices found.".to_string())
+        } else {
+            Ok(devices)
+        }
+    } else {
+        Err("Failed to retrieve devices.".to_string())
+    }
+}
+
 // Runs an ADB shell command on a specific device.
 pub fn run_shell_command(device_id: &str, command: &str) -> Result<String, String> {
     let output = Command::new("adb")
@@ -94,5 +124,55 @@ pub fn run_shell_command(device_id: &str, command: &str) -> Result<String, Strin
     } else {
         let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
         Err(format!("ADB shell command failed: {}", error_msg))
+    }
+}
+
+/// Push a file from the PC to an Android device.
+pub fn adb_push(device_id: &str, local_path: &str, remote_path: &str) -> Result<(), String> {
+    let output = Command::new("adb")
+        .arg("-s")
+        .arg(device_id)
+        .arg("push")
+        .arg(local_path)
+        .arg(remote_path)
+        .output()
+        .map_err(|e| format!("Failed to execute adb push: {}", e))?;
+    
+    if output.status.success() {
+        println!("File pushed successfully to {}", remote_path);
+        Ok(())
+    } else {
+        let error_msg = String::from_utf8_lossy(&output.stderr);
+        Err(format!("ADB push failed: {}", error_msg))
+    }
+}
+
+/// Pull a file from an Android device to the PC
+pub fn adb_pull(device_id: &str, remote_path: &str, local_path: &str) -> Result<(), String> {
+    let local_parent = Path::new(local_path)
+        .parent()
+        .ok_or("Invalid local path")?;
+
+    // Create the parent directory if it does not exists
+    if !local_parent.exists() {
+        fs::create_dir_all(local_parent)
+            .map_err(|e| format!("Failed to create local directory: {}", e))?;
+    }
+    
+    let output = Command::new("adb")
+        .arg("-s")
+        .arg(device_id)
+        .arg("pull")
+        .arg(remote_path)
+        .arg(local_path)
+        .output()
+        .map_err(|e| format!("Failed to execute adb pull: {}", e))?;
+
+    if output.status.success() {
+        println!("File pulled successfully to {}", remote_path);
+        Ok(())
+    } else {
+        let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
+        Err(format!("ADB pull failed: {}", error_msg))
     }
 }
