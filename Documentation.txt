@@ -60,3 +60,79 @@ Device: V2059 | Battery: Current Battery Service state:
   technology: Li-poly | Uptime: 23:07:42 up 24 days,  8:07,  0 users,  load average: 22.00, 21.68, 21.78
 PS D:\Projects\MirrOx> 
 ==========================================================================================================
+
+📌 Phase 1: Core ADB & Device Communication (Current Stage)
+✅ You’ve already implemented:
+
+check_adb → Check if ADB is installed
+
+list_devices → List connected devices
+
+run_shell_command → Execute ADB shell commands
+
+extract_battery_level → Parse battery info
+
+🔹 Next Steps (To-Do):
+
+Fix ADB Pull Issues:
+
+Ensure correct file paths for pulling files
+
+Implement error handling if a file is missing
+
+Implement Device Selection:
+
+Get a list of connected devices dynamically
+
+Allow the user to choose a device to mirror
+
+Improve Logging & Error Handling:
+
+Handle ADB failures more gracefully
+
+Add logs for debugging (use log crate)
+
+📌 Phase 2: Implement Screen Mirroring
+🔹 Major Tasks:
+
+Capture Device Screen via ADB
+
+Use adb exec-out screencap -p to get a raw image
+
+Parse it into an image format (PNG/JPEG) in Rust
+
+Stream Images to the Frontend
+
+Convert screenshots into a video stream
+
+Use a WebSocket or raw TCP connection for real-time updates
+
+Keyboard & Mouse Input Support
+
+Send touch/mouse inputs via adb shell input tap X Y
+
+Implement basic keyboard input handling
+
+📌 Phase 3: Optimize for Performance
+🔹 Next Enhancements:
+
+Reduce Latency
+
+Use a more efficient method than screencap (e.g., ADB raw framebuffer access)
+
+Implement caching & frame compression
+
+GPU Acceleration
+
+Utilize Rust’s GPU libraries (like wgpu) for rendering
+
+Cross-Platform Support
+
+Ensure it works on Windows, Linux, and Mac
+
+📌 Phase 4: Build a UI (Optional)
+🔹 Frontend Choices:
+
+TUI (Terminal UI) → Use ratatui for CLI mirroring
+
+GUI (Graphical UI) → Use egui or a web-based UI with Tauri
