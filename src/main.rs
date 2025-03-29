@@ -1,6 +1,7 @@
 // //! MirrOx: A Rust-based implementation of scrcp
 mod utils;
 mod adb;
+use crate::adb::*;
 
 fn main() {
     println!("Starting MirrOx...");
@@ -21,5 +22,17 @@ fn main() {
             }
         }
         Err(e) => eprintln!("Error: {}", e),
+    }
+
+    // let device_id = device.id;
+
+    match adb_push(device.id, "D:/test.txt", "/sdcard/ADB/test.txt") {
+        Ok(_) => println!("Push successful"),
+        Err(e) => println!("Error: {}", e),
+    }
+
+    match adb_pull(device.id, "/sdcard/ADB/file.txt", "D:/file.txt") {
+        Ok(_) => println!("Pull successful"), 
+        Err(e) => println!("Error: {}", e),
     }
 }
