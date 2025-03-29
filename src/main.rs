@@ -24,15 +24,26 @@ fn main() {
         Err(e) => eprintln!("Error: {}", e),
     }
 
-    // let device_id = device.id;
+    match get_connected_devices() {
+        Ok(devices) => {
+            if let Some(device_id) = devices.first() {
+                println!("Using device: {}", device_id);
 
-    match adb_push(device.id, "D:/test.txt", "/sdcard/ADB/test.txt") {
-        Ok(_) => println!("Push successful"),
-        Err(e) => println!("Error: {}", e),
-    }
+                // Push a file from PC to Android
+                match adb_push(device_id, "D:/test.txt", "/sdcard/ADB/test.txt") {
+                    Ok(_) => println!("Push successful"),
+                    Err(e) => println!("Error: {}", e),
+                }
 
-    match adb_pull(device.id, "/sdcard/ADB/file.txt", "D:/file.txt") {
-        Ok(_) => println!("Pull successful"), 
+                // Pull a file from Android to PC
+                match adb_pull(device_id, "/sdcard/ADB/file.txt", "C:/Users/Sampreet/Downloads/file.txt") {
+                    Ok(_) => println!("Pull successful"),
+                    Err(e) => println!("Error: {}", e),
+                }
+            } else {
+                println!("No devices found.");
+            }
+        }
         Err(e) => println!("Error: {}", e),
     }
 }

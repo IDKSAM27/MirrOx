@@ -1,3 +1,5 @@
+use std::fs;
+use std::path::Path;
 use crate::utils::*;
 
 use std::process::Command;
@@ -78,8 +80,6 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
     }
 }
 
-use std::process::Command;
-
 /// Gets the list of connected ADB devices.
 pub fn get_connected_devices() -> Result<Vec<String>, String> {
     let output = Command::new("adb")
@@ -149,6 +149,16 @@ pub fn adb_push(device_id: &str, local_path: &str, remote_path: &str) -> Result<
 
 /// Pull a file from an Android device to the PC
 pub fn adb_pull(device_id: &str, remote_path: &str, local_path: &str) -> Result<(), String> {
+    let local_parent = Path::new(local_path)
+        .parent()
+        .ok_or("Invalid local path")?;
+
+    // Create the parent directory if it does not exists
+    if !local_parent.exists() {
+        fs::create_dir_all(local_parent)
+            .map_err(|e| format!("Failed to create local directory: {}", e))?;
+    }
+    
     let output = Command::new("adb")
         .arg("-s")
         .arg(device_id)
@@ -162,7 +172,7 @@ pub fn adb_pull(device_id: &str, remote_path: &str, local_path: &str) -> Result<
         println!("File pulled successfully to {}", remote_path);
         Ok(())
     } else {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
+        let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
         Err(format!("ADB pull failed: {}", error_msg))
     }
 }
