@@ -36,7 +36,7 @@ fn main() {
                 }
 
                 // Pull a file from Android to PC
-                match adb_pull(device_id, "/sdcard/ADB/file.txt", "C:/Users/Sampreet/Downloads/file.txt") {
+                match adb_pull(device_id, "/sdcard/ADB/test.txt", "C:/Users/Sampreet/Downloads/file.txt") {
                     Ok(_) => println!("Pull successful"),
                     Err(e) => println!("Error: {}", e),
                 }
