@@ -65,7 +65,7 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
                     connection_type: connection_type.to_string(),
                     manufacture,
                     model,
-                    uptime,
+                    uptime: uptime.to_string(),
                     battery_level,
                     
                 });
