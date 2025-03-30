@@ -179,29 +179,36 @@ pub fn adb_pull(device_id: &str, remote_path: &str, local_path: &str) -> Result<
     }
 }
 
-pub fn select_device() -> Result<String, String> {
+pub fn select_device() -> Result<AdbDevice, String> {
     let devices = list_devices()?; // ?: is used for error handling i.e., Ok() and Err() checks
 
-    if devices.is_empty() {
-        return Err("No devices available.".to_string())
+    if devices.len() == 1 {
+        println!("Automatically selecting device: {}", devices[0].id);
+        return Ok(devices[0].clone());
     }
 
-    println!("Available Devices:");
+    println!("Select a device:");
     for (i, device) in devices.iter().enumerate() { // enumerate() pairs each element with its index.
-        println!("{}: {:?}", i + 1, device);
+        println!("{}: {} ({})", i + 1, device.id, device.model);
     }
 
-    print!("Select a device (1-{}): ", devices.len());
+    print!("Enter the number of the device: ");
     io::stdout().flush().unwrap(); // Ensure the prompt is displayed before input
-
     let mut input = String::new();
-    io::stdin().read_line(&mut input).map_err(|_| "Failed to read input".to_string())?;
-
-    let choice: usize = input.trim().parse().map_err(|_| "Invalid choice".to_string())?;
-
-    if choice == 0 || choice > devices.len() {
-        return Err("Invalid selection.".to_string());
+    io::stdin().read_line(&mut input).unwrap();
+    let choice: usize = input.trim().parse().map_err(|_| "Invalid input".to_string())?;
+    
+    if choice > 0 && choice <= devices.len() {
+        Ok(devices[choice - 1].clone())
+    } else {
+        Err("Invalid selection".to_string())
     }
+}
 
-    Ok(devices[choice - 1].id.clone()) // Return the selected device ID
+pub fn say_hello_from_device() -> Result<(), String> {
+    let device = select_device()?;
+    let message = format!("Hello from {}", device.model);
+    run_shell_command(&device.id, &format!("echo '{}'", message))?;
+    println!("Sent message: {}", message);
+    Ok(())
 }
