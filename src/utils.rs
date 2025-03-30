@@ -6,3 +6,4 @@ pub fn extract_battery_level(output: &str) -> String {
     }
     "Unknown".to_string()
 }
+

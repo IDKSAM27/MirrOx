@@ -1,11 +1,12 @@
 use std::fs;
 use std::path::Path;
 use crate::utils::*;
-
+use std::io::{self, Write};
 use std::process::Command;
+// use std::fmt::Display;
 
 // Represents a connected ADB device with its state.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AdbDevice {
     pub id: String, // ADB device id
     pub state: String, // device, unauthorized, offline states
@@ -59,13 +60,14 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
                 let battery_level = extract_battery_level(&battery_info); // extract_battery_level() is in utils.rs
 
                 devices.push(AdbDevice {
-                    id: device_id,
+                    id: device_id, // id: device_id
                     state,
                     connection_type: connection_type.to_string(),
                     manufacture,
                     model,
                     uptime: uptime.to_string(),
                     battery_level,
+                    
                 });
             }
         }
@@ -169,10 +171,44 @@ pub fn adb_pull(device_id: &str, remote_path: &str, local_path: &str) -> Result<
         .map_err(|e| format!("Failed to execute adb pull: {}", e))?;
 
     if output.status.success() {
-        println!("File pulled successfully to {}", remote_path);
+        println!("File pulled successfully to {}", local_path);
         Ok(())
     } else {
         let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
         Err(format!("ADB pull failed: {}", error_msg))
     }
+}
+
+pub fn select_device() -> Result<AdbDevice, String> {
+    let devices = list_devices()?; // ?: is used for error handling i.e., Ok() and Err() checks
+
+    if devices.len() == 1 {
+        println!("Automatically selecting device: {}", devices[0].id);
+        return Ok(devices[0].clone());
+    }
+
+    println!("Select a device:");
+    for (i, device) in devices.iter().enumerate() { // enumerate() pairs each element with its index.
+        println!("{}: {} ({})", i + 1, device.id, device.model);
+    }
+
+    print!("Enter the number of the device: ");
+    io::stdout().flush().unwrap(); // Ensure the prompt is displayed before input
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    let choice: usize = input.trim().parse().map_err(|_| "Invalid input".to_string())?;
+    
+    if choice > 0 && choice <= devices.len() {
+        Ok(devices[choice - 1].clone())
+    } else {
+        Err("Invalid selection".to_string())
+    }
+}
+
+pub fn say_hello_from_device() -> Result<(), String> {
+    let device = select_device()?;
+    let message = format!("Hello {}", device.model);
+    run_shell_command(&device.id, &format!("echo '{}'", message))?;
+    println!("Sent message: {}", message);
+    Ok(())
 }
