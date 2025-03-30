@@ -25,7 +25,7 @@ fn main() {
     }
 
     match adb::say_hello_from_device() {
-        Ok(_) => println!("Message sent successfully."),
+        Ok(_) => println!("Message sent successfully.\n"),
         Err(e) => eprintln!("Error: {}", e),
     }
 

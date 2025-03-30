@@ -171,7 +171,7 @@ pub fn adb_pull(device_id: &str, remote_path: &str, local_path: &str) -> Result<
         .map_err(|e| format!("Failed to execute adb pull: {}", e))?;
 
     if output.status.success() {
-        println!("File pulled successfully to {}", remote_path);
+        println!("File pulled successfully to {}", local_path);
         Ok(())
     } else {
         let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
@@ -207,7 +207,7 @@ pub fn select_device() -> Result<AdbDevice, String> {
 
 pub fn say_hello_from_device() -> Result<(), String> {
     let device = select_device()?;
-    let message = format!("Hello from {}", device.model);
+    let message = format!("Hello {}", device.model);
     run_shell_command(&device.id, &format!("echo '{}'", message))?;
     println!("Sent message: {}", message);
     Ok(())

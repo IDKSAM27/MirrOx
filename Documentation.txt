@@ -76,8 +76,6 @@ Fixed ADB Pull Issues:
 
   Ensure correct file paths for pulling files
 
-🔹 Next Steps (To-Do):
-
 Implement error handling if a file is missing
 
 Implement Device Selection:
@@ -86,11 +84,17 @@ Implement Device Selection:
 
   Allow the user to choose a device to mirror
 
+
+
+TODO: Next Steps (To-Do):
+
 Improve Logging & Error Handling:
 
   Handle ADB failures more gracefully
 
 Add logs for debugging (use log crate)
+
+
 
 📌 Phase 2: Implement Screen Mirroring
 🔹 Major Tasks:
