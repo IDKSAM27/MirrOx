@@ -4,29 +4,43 @@ mod adb;
 use crate::adb::*;
 
 fn main() {
+    env_logger::init();
     println!("Starting MirrOx...");
 
     // Check if ADB is available
     if let Err(e) = adb::check_adb() {
-        eprintln!("Error: {}", e);
+        log::error!("ADB check failed: {}", e);
         return;
     }
 
     // List connected devices
     match adb::list_devices() {
         Ok(devices) => {
+            if devices.is_empty() {
+                log::error!("No devices found.");
+                return; // Exit early if no devices are found
+            }
             println!("Connected devices:");
             for device in &devices {
-                println!("- {} ({}) [{}] | Manufacturer: {} | Model: {}", device.id, device.state, device.connection_type, device.manufacture, device.model);
-
+                println!(
+                    "- {} ({}) [{}] | Manufacturer: {} | Model: {}",
+                    device.id, device.state, device.connection_type, device.manufacture, device.model
+                );
+                println!(
+                    "Device: {} | Battery: {}% | Uptime: {}\n",
+                    device.model, device.battery_level, device.uptime
+                );
             }
         }
-        Err(e) => eprintln!("Error: {}", e),
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return; // Exit early if list_devices() fails
+        }
     }
 
     match adb::say_hello_from_device() {
         Ok(_) => println!("Message sent successfully.\n"),
-        Err(e) => eprintln!("Error: {}", e),
+        Err(e) => eprintln!("2Error: {}", e),
     }
 
     match get_connected_devices() {

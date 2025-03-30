@@ -45,6 +45,8 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
         let output_str = String::from_utf8_lossy(&output.stdout);
         let mut devices = Vec::new();
 
+        log::debug!("Raw ADB output:\n{}", output_str); // NEW SHIT
+
         // Parse ADB output
         for line in output_str.lines().skip(1) { // Skip "List of devices attached"
             let parts: Vec<&str> = line.split_whitespace().collect();
@@ -74,6 +76,7 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
 
         if devices.is_empty() {
             Err("No devices found.".to_string())
+            // Err("".to_string())
         } else {
             Ok(devices)
         }
@@ -101,7 +104,7 @@ pub fn get_connected_devices() -> Result<Vec<String>, String> {
         }
 
         if devices.is_empty() {
-            Err("No devices found.".to_string())
+            Err("No devices found.2".to_string())
         } else {
             Ok(devices)
         }
@@ -112,22 +115,31 @@ pub fn get_connected_devices() -> Result<Vec<String>, String> {
 
 // Runs an ADB shell command on a specific device.
 pub fn run_shell_command(device_id: &str, command: &str) -> Result<String, String> {
+    log::info!("Running ADB command: adb -s {} shell {}", device_id, command);
+    
     let output = Command::new("adb")
         .arg("-s")
         .arg(device_id)
         .arg("shell")
         .arg(command)
         .output()
-        .map_err(|e| format!("Failed to execute adb shell command: {}", e))?;
+        .map_err(|e| {
+            log::error!("Failed to execute ADB shell command: {}", e);
+            format!("Failed to execute adb shell command: {}", e)
+        })?;
 
-    if output.status.success() {
-        let result = String::from_utf8_lossy(&output.stdout).to_string();
-        Ok(result.trim().to_string()) // Trim whitespaces
-    } else {
+    if !output.status.success() {
         let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
-        Err(format!("ADB shell command failed: {}", error_msg))
+        log::error!("ADB shell command failed: {}", error_msg);
+        return Err(format!("ADB shell command failed: {}", error_msg));
     }
+
+    let result = String::from_utf8_lossy(&output.stdout).to_string();
+    log::debug!("ADB command output: {}", result.trim());
+
+    Ok(result.trim().to_string())
 }
+
 
 /// Push a file from the PC to an Android device.
 pub fn adb_push(device_id: &str, local_path: &str, remote_path: &str) -> Result<(), String> {
@@ -183,19 +195,29 @@ pub fn select_device() -> Result<AdbDevice, String> {
     let devices = list_devices()?; // ?: is used for error handling i.e., Ok() and Err() checks
 
     if devices.len() == 1 {
-        println!("Automatically selecting device: {}", devices[0].id);
+        log::info!("Automatically selecting device: {}", devices[0].id);
         return Ok(devices[0].clone());
     }
 
-    println!("Select a device:");
+    // println!("Select a device:");
+    log::info!("Prompting user to select a device...");
     for (i, device) in devices.iter().enumerate() { // enumerate() pairs each element with its index.
-        println!("{}: {} ({})", i + 1, device.id, device.model);
+        // println!("{}: {} ({})", i + 1, device.id, device.model);
+        log::debug!("Device {}: {} ({})", i + 1, device.id, device.model);
     }
 
     print!("Enter the number of the device: ");
-    io::stdout().flush().unwrap(); // Ensure the prompt is displayed before input
+    // io::stdout().flush().unwrap(); // Ensure the prompt is displayed before input
+    if let Err(e) = io::stdout().flush() {
+        log::warn!("Failed to flush stdout: {}", e);
+    }
+
     let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
+    // io::stdin().read_line(&mut input).unwrap();
+    if let Err(e) = io::stdin().read_line(&mut input) {
+        log::warn!("Failed to read user input: {}", e);
+    }
+
     let choice: usize = input.trim().parse().map_err(|_| "Invalid input".to_string())?;
     
     if choice > 0 && choice <= devices.len() {
