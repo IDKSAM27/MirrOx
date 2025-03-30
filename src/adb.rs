@@ -3,9 +3,10 @@ use std::path::Path;
 use crate::utils::*;
 use std::io::{self, Write};
 use std::process::Command;
+// use std::fmt::Display;
 
 // Represents a connected ADB device with its state.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AdbDevice {
     pub id: String, // ADB device id
     pub state: String, // device, unauthorized, offline states
@@ -59,16 +60,15 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
                 let battery_level = extract_battery_level(&battery_info); // extract_battery_level() is in utils.rs
 
                 devices.push(AdbDevice {
-                    id: device_id,
+                    id: device_id, // id: device_id
                     state,
                     connection_type: connection_type.to_string(),
                     manufacture,
                     model,
                     uptime,
                     battery_level,
+                    
                 });
-
-                devices.push(parts[0].to_string()); // Only stores the devide ID, //TODO:  change it to device_id
             }
         }
 
@@ -188,7 +188,7 @@ pub fn select_device() -> Result<String, String> {
 
     println!("Available Devices:");
     for (i, device) in devices.iter().enumerate() { // enumerate() pairs each element with its index.
-        println!("{}: {}", i + 1, device);
+        println!("{}: {:?}", i + 1, device);
     }
 
     print!("Select a device (1-{}): ", devices.len());
@@ -203,5 +203,5 @@ pub fn select_device() -> Result<String, String> {
         return Err("Invalid selection.".to_string());
     }
 
-    Ok(devices[choice - 1].clone()) // Return the selected device ID
+    Ok(devices[choice - 1].id.clone()) // Return the selected device ID
 }
