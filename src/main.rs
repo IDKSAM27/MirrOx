@@ -46,4 +46,13 @@ fn main() {
         }
         Err(e) => println!("Error: {}", e),
     }
+
+    match select_device() {
+        Ok(device_id) => {
+            println!("Selected device: {}", device_id);
+            // Now you can use devide_id in your ADB commands
+            let _ = run_shell_command(&device_id, "echo 'Hello from Rust'");
+        }
+        Err(e) => eprintln!("Error: {}", e),
+    }
 }

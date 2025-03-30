@@ -72,23 +72,23 @@ run_shell_command → Execute ADB shell commands
 
 extract_battery_level → Parse battery info
 
+Fixed ADB Pull Issues:
+
+  Ensure correct file paths for pulling files
+
 🔹 Next Steps (To-Do):
-
-Fix ADB Pull Issues:
-
-Ensure correct file paths for pulling files
 
 Implement error handling if a file is missing
 
 Implement Device Selection:
 
-Get a list of connected devices dynamically
+  Get a list of connected devices dynamically
 
-Allow the user to choose a device to mirror
+  Allow the user to choose a device to mirror
 
 Improve Logging & Error Handling:
 
-Handle ADB failures more gracefully
+  Handle ADB failures more gracefully
 
 Add logs for debugging (use log crate)
 

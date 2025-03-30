@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 use crate::utils::*;
-
+use std::io::{self, Write};
 use std::process::Command;
 
 // Represents a connected ADB device with its state.
@@ -67,6 +67,8 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
                     uptime,
                     battery_level,
                 });
+
+                devices.push(parts[0].to_string()); // Only stores the devide ID, //TODO:  change it to device_id
             }
         }
 
@@ -175,4 +177,31 @@ pub fn adb_pull(device_id: &str, remote_path: &str, local_path: &str) -> Result<
         let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
         Err(format!("ADB pull failed: {}", error_msg))
     }
+}
+
+pub fn select_device() -> Result<String, String> {
+    let devices = list_devices()?; // ?: is used for error handling i.e., Ok() and Err() checks
+
+    if devices.is_empty() {
+        return Err("No devices available.".to_string())
+    }
+
+    println!("Available Devices:");
+    for (i, device) in devices.iter().enumerate() { // enumerate() pairs each element with its index.
+        println!("{}: {}", i + 1, device);
+    }
+
+    print!("Select a device (1-{}): ", devices.len());
+    io::stdout().flush().unwrap(); // Ensure the prompt is displayed before input
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).map_err(|_| "Failed to read input".to_string())?;
+
+    let choice: usize = input.trim().parse().map_err(|_| "Invalid choice".to_string())?;
+
+    if choice == 0 || choice > devices.len() {
+        return Err("Invalid selection.".to_string());
+    }
+
+    Ok(devices[choice - 1].clone()) // Return the selected device ID
 }
