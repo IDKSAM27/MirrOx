@@ -1,6 +1,6 @@
 // use std::fs::*;
 use std::fs;
-use std::fs::File;
+// use std::fs::File;
 use std::path::Path;
 use crate::utils::*;
 use std::io::{self, Write};
@@ -237,26 +237,19 @@ pub fn say_hello_from_device() -> Result<(), String> {
     Ok(())
 }
 
-/// Captures the device screen and saves it as a PNG file.
-pub fn capture_screen(device_id: &str, output_str: &str) -> Result<(), String> {
+/// Captures the device screen and pass it.
+pub fn capture_screen(device_id: &str) -> Result<Vec<u8>, String> {
     let output = Command::new("adb")
-        .arg("-s")
-        .arg(device_id)
-        .arg("exec-out")
-        .arg("screencap -p")
+        .args(["-s", device_id, "exec-out", "screencap", "-p"])
         .output()
-        .map_err(|e| format!("Failed to execute adb screencap: {}" ,e))?;
+        .map_err(|e| format!("Failed to run ADB command: {}", e))?;
 
-    if output.status.success() {
-        let mut file = File::create(output_str)
-            .map_err(|e| format!("Failed to create file: {}", e))?;
-        file.write_all(&output.stdout)
-            .map_err(|e| format!("Failed to write screenshot data: {}", e))?;
-
-        println!("Screenshot saved at: {}", output_str);
-        Ok(())
-    } else {
-        let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
-        Err(format!("ADB screencap failed: {}", error_msg))
+    if !output.status.success() {
+        return Err(format!(
+            "ADB command failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
     }
+
+    Ok(output.stdout) // Return raw image data
 }

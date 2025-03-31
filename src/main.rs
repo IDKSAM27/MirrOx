@@ -1,7 +1,9 @@
 // //! MirrOx: A Rust-based implementation of scrcp
 mod utils;
 mod adb;
+mod video;
 use crate::adb::*;
+// use crate::video::*;
 
 fn main() {
     env_logger::init();
@@ -67,11 +69,27 @@ fn main() {
     }
 
     // Capture the screenshot, also saves it as screenshot.png
-    if let Ok(selected_device) = adb::select_device() {
-        if let Err(e) = adb::capture_screen(&selected_device.id, "screenshot.png") {
-            log::error!("Error capturing screen: {}", e);
+    // if let Ok(selected_device) = adb::select_device() {
+    //     if let Err(e) = adb::capture_screen(&selected_device.id, "screenshot.png") {
+    //         log::error!("Error capturing screen: {}", e);
+    //     }
+    // } else {
+    //     log::error!("Failed to select device.");
+    // }
+
+    match adb::select_device() {
+        Ok(selected_device) => {
+            println!("Selected device: {} ({})", selected_device.id, selected_device.model);
+            
+            match adb::capture_screen(&selected_device.id) {
+                Ok(raw_data) => {
+                    if let Err(e) = video::parse_screenshot(raw_data, "screenshot.png") {
+                        log::error!("Error processing screenshot: {}", e);
+                    }
+                }
+                Err(e) => log::error!("Error capturing screen: {}", e),
+            }
         }
-    } else {
-        log::error!("Failed to select device.");
+        Err(e) => log::error!("Device selection failed: {}", e),
     }
 }

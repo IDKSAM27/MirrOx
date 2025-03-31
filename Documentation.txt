@@ -27,6 +27,8 @@ Command	Description
 
 
 We'll use `adb exec_out screencap -p` to get the devices screen as a raw PNG image.
+Implement PNG/JPEG Parsing in `video.rs`
+Parse Screenshot into PNG/JPEG 
 
 
 ==========================================================================================================
@@ -93,12 +95,6 @@ Improve Logging & Error Handling:
 
 Add logs for debugging (use log crate)
 
-
-
-TODO: Next Steps (To-Do):
-
-
-
 📌 Phase 2: Implement Screen Mirroring
 🔹 Major Tasks:
 
@@ -107,6 +103,12 @@ Capture Device Screen via ADB
 Use adb exec-out screencap -p to get a raw image
 
 Parse it into an image format (PNG/JPEG) in Rust
+
+
+
+TODO: Next Steps (To-Do):
+
+
 
 Stream Images to the Frontend
 
