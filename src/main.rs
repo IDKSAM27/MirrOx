@@ -2,12 +2,22 @@
 mod utils;
 mod adb;
 mod video;
+mod network;
 use crate::adb::*;
 // use crate::video::*;
+use tokio::sync::broadcast;
+use std::sync::Arc;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::init();
     println!("Starting MirrOx...");
+
+    // let (tx, _) = mpsc::unbounded_channel();
+    let (tx, _) = broadcast::channel(10); // Use broadcast::chanel instead of mpsc::unbounded_channel
+    let tx = Arc::new(tx); // ✅ Wrap in Arc
+
+    tokio::spawn(network::start_websocket_server((*tx).clone())); // ✅ Fix type mismatch
 
     // Check if ADB is available
     if let Err(e) = adb::check_adb() {
@@ -67,15 +77,6 @@ fn main() {
         }
         Err(e) => println!("Error: {}", e),
     }
-
-    // Capture the screenshot, also saves it as screenshot.png
-    // if let Ok(selected_device) = adb::select_device() {
-    //     if let Err(e) = adb::capture_screen(&selected_device.id, "screenshot.png") {
-    //         log::error!("Error capturing screen: {}", e);
-    //     }
-    // } else {
-    //     log::error!("Failed to select device.");
-    // }
 
     match adb::select_device() {
         Ok(selected_device) => {
