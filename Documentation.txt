@@ -31,6 +31,19 @@ Implement PNG/JPEG Parsing in `video.rs`
 Parse Screenshot into PNG/JPEG 
 I'll use `tokio` and `warp` crates to create a WebSocket server.
 
+🔹 Final Flow
+video::start_video_stream(tx.clone()) sends frames into tx.
+
+network::start_websocket_server(tx.clone()) handles WebSocket connections.
+
+Each WebSocket connection calls handle_connection, where:
+
+rx receives frames.
+
+ws_sender.send() sends them to the client.
+
+The frontend receives real-time video frames via WebSocket.
+
 
 ==========================================================================================================
 Starting MirrOx...
