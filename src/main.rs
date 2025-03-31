@@ -1,11 +1,24 @@
 // //! MirrOx: A Rust-based implementation of scrcp
 mod utils;
 mod adb;
+mod video;
+mod network;
 use crate::adb::*;
+use tokio::sync::broadcast;
+use std::sync::Arc;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::init();
     println!("Starting MirrOx...");
+
+    // let (tx, _) = mpsc::unbounded_channel();
+    let (tx, _) = broadcast::channel(10); // Use broadcast::chanel instead of mpsc::unbounded_channel
+    let tx = Arc::new(tx); // ✅ Wrap in Arc
+
+    tokio::spawn(network::start_websocket_server((*tx).clone())); // ✅ Fix type mismatch
+    // tokio::spawn(video::start_video_stream(tx.clone())); // ✅ Start video stream
+
 
     // Check if ADB is available
     if let Err(e) = adb::check_adb() {
@@ -64,5 +77,29 @@ fn main() {
             }
         }
         Err(e) => println!("Error: {}", e),
+    }
+
+    match adb::select_device() {
+        Ok(selected_device) => {
+            println!("Selected device: {} ({})", selected_device.id, selected_device.model);
+
+            // ✅ Start the video stream with the correct device ID
+            let tx_clone = tx.clone();
+            let device_id = selected_device.id.clone(); // Clone device ID
+            
+            tokio::spawn(async move {
+                video::start_video_stream(tx_clone, device_id).await;
+            });
+            
+            match adb::capture_screen(&selected_device.id) {
+                Ok(raw_data) => {
+                    if let Err(e) = video::parse_screenshot(raw_data, "screenshot.png") {
+                        log::error!("Error processing screenshot: {}", e);
+                    }
+                }
+                Err(e) => log::error!("Error capturing screen: {}", e),
+            }
+        }
+        Err(e) => log::error!("Device selection failed: {}", e),
     }
 }

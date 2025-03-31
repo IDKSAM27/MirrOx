@@ -1,4 +1,6 @@
+// use std::fs::*;
 use std::fs;
+// use std::fs::File;
 use std::path::Path;
 use crate::utils::*;
 use std::io::{self, Write};
@@ -233,4 +235,21 @@ pub fn say_hello_from_device() -> Result<(), String> {
     run_shell_command(&device.id, &format!("echo '{}'", message))?;
     println!("Sent message: {}", message);
     Ok(())
+}
+
+/// Captures the device screen and pass it.
+pub fn capture_screen(device_id: &str) -> Result<Vec<u8>, String> {
+    let output = Command::new("adb")
+        .args(["-s", device_id, "exec-out", "screencap", "-p"])
+        .output()
+        .map_err(|e| format!("Failed to run ADB command: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "ADB command failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    Ok(output.stdout) // Return raw image data
 }

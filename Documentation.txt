@@ -26,6 +26,25 @@ Command	Description
 "getprop ro.build.version.release"	Get Android version
 
 
+I'll use `adb exec_out screencap -p` to get the devices screen as a raw PNG image.
+Implement PNG/JPEG Parsing in `video.rs`
+Parse Screenshot into PNG/JPEG 
+I'll use `tokio` and `warp` crates to create a WebSocket server.
+
+🔹 Final Flow
+video::start_video_stream(tx.clone()) sends frames into tx.
+
+network::start_websocket_server(tx.clone()) handles WebSocket connections.
+
+Each WebSocket connection calls handle_connection, where:
+
+rx receives frames.
+
+ws_sender.send() sends them to the client.
+
+The frontend receives real-time video frames via WebSocket.
+
+
 ==========================================================================================================
 Starting MirrOx...
 ADB Version: Android Debug Bridge version 1.0.41
@@ -90,12 +109,6 @@ Improve Logging & Error Handling:
 
 Add logs for debugging (use log crate)
 
-
-
-TODO: Next Steps (To-Do):
-
-
-
 📌 Phase 2: Implement Screen Mirroring
 🔹 Major Tasks:
 
@@ -105,17 +118,33 @@ Use adb exec-out screencap -p to get a raw image
 
 Parse it into an image format (PNG/JPEG) in Rust
 
+
+
+TODO: Next Steps (To-Do):
+
+
+
 Stream Images to the Frontend
 
 Convert screenshots into a video stream
 
 Use a WebSocket or raw TCP connection for real-time updates
+    ✅ Plan
+    Continuously capture screenshots using ADB.
+
+    Convert them into a video stream (we'll start with rapid sequential images).
+
+    Send images to the frontend using a WebSocket or TCP.
+
+
 
 Keyboard & Mouse Input Support
 
 Send touch/mouse inputs via adb shell input tap X Y
 
 Implement basic keyboard input handling
+
+
 
 📌 Phase 3: Optimize for Performance
 🔹 Next Enhancements:
@@ -133,6 +162,8 @@ Utilize Rust’s GPU libraries (like wgpu) for rendering
 Cross-Platform Support
 
 Ensure it works on Windows, Linux, and Mac
+
+
 
 📌 Phase 4: Build a UI (Optional)
 🔹 Frontend Choices:
