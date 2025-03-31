@@ -26,9 +26,10 @@ Command	Description
 "getprop ro.build.version.release"	Get Android version
 
 
-We'll use `adb exec_out screencap -p` to get the devices screen as a raw PNG image.
+I'll use `adb exec_out screencap -p` to get the devices screen as a raw PNG image.
 Implement PNG/JPEG Parsing in `video.rs`
 Parse Screenshot into PNG/JPEG 
+I'll use `tokio` and `warp` crates to create a WebSocket server.
 
 
 ==========================================================================================================
@@ -115,6 +116,14 @@ Stream Images to the Frontend
 Convert screenshots into a video stream
 
 Use a WebSocket or raw TCP connection for real-time updates
+    ✅ Plan
+    Continuously capture screenshots using ADB.
+
+    Convert them into a video stream (we'll start with rapid sequential images).
+
+    Send images to the frontend using a WebSocket or TCP.
+
+
 
 Keyboard & Mouse Input Support
 
