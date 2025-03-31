@@ -65,4 +65,13 @@ fn main() {
         }
         Err(e) => println!("Error: {}", e),
     }
+
+    // Capture the screenshot, also saves it as screenshot.png
+    if let Ok(selected_device) = adb::select_device() {
+        if let Err(e) = adb::capture_screen(&selected_device.id, "screenshot.png") {
+            log::error!("Error capturing screen: {}", e);
+        }
+    } else {
+        log::error!("Failed to select device.");
+    }
 }

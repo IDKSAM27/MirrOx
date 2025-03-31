@@ -1,4 +1,6 @@
+// use std::fs::*;
 use std::fs;
+use std::fs::File;
 use std::path::Path;
 use crate::utils::*;
 use std::io::{self, Write};
@@ -233,4 +235,28 @@ pub fn say_hello_from_device() -> Result<(), String> {
     run_shell_command(&device.id, &format!("echo '{}'", message))?;
     println!("Sent message: {}", message);
     Ok(())
+}
+
+/// Captures the device screen and saves it as a PNG file.
+pub fn capture_screen(device_id: &str, output_str: &str) -> Result<(), String> {
+    let output = Command::new("adb")
+        .arg("-s")
+        .arg(device_id)
+        .arg("exec-out")
+        .arg("screencap -p")
+        .output()
+        .map_err(|e| format!("Failed to execute adb screencap: {}" ,e))?;
+
+    if output.status.success() {
+        let mut file = File::create(output_str)
+            .map_err(|e| format!("Failed to create file: {}", e))?;
+        file.write_all(&output.stdout)
+            .map_err(|e| format!("Failed to write screenshot data: {}", e))?;
+
+        println!("Screenshot saved at: {}", output_str);
+        Ok(())
+    } else {
+        let error_msg = String::from_utf8_lossy(&output.stderr).to_string();
+        Err(format!("ADB screencap failed: {}", error_msg))
+    }
 }

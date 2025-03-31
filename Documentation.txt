@@ -26,6 +26,9 @@ Command	Description
 "getprop ro.build.version.release"	Get Android version
 
 
+We'll use `adb exec_out screencap -p` to get the devices screen as a raw PNG image.
+
+
 ==========================================================================================================
 Starting MirrOx...
 ADB Version: Android Debug Bridge version 1.0.41
@@ -117,6 +120,8 @@ Send touch/mouse inputs via adb shell input tap X Y
 
 Implement basic keyboard input handling
 
+
+
 📌 Phase 3: Optimize for Performance
 🔹 Next Enhancements:
 
@@ -133,6 +138,8 @@ Utilize Rust’s GPU libraries (like wgpu) for rendering
 Cross-Platform Support
 
 Ensure it works on Windows, Linux, and Mac
+
+
 
 📌 Phase 4: Build a UI (Optional)
 🔹 Frontend Choices:
