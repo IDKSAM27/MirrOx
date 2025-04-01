@@ -80,6 +80,7 @@ Major factors for successfully enabling sdl2 features:
 
 
 ==========================================================================================================
+
 Starting MirrOx...
 ADB Version: Android Debug Bridge version 1.0.41
 Version 35.0.2-12147458
@@ -112,6 +113,7 @@ Device: V2059 | Battery: Current Battery Service state:
   temperature: 315
   technology: Li-poly | Uptime: 23:07:42 up 24 days,  8:07,  0 users,  load average: 22.00, 21.68, 21.78
 PS D:\Projects\MirrOx> 
+
 ==========================================================================================================
 
 📌 Phase 1: Core ADB & Device Communication (Current Stage)
