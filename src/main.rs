@@ -3,6 +3,7 @@ mod utils;
 mod adb;
 mod video;
 mod network;
+mod gui;
 use crate::adb::*;
 use tokio::sync::broadcast;
 use std::sync::Arc;
@@ -14,10 +15,10 @@ async fn main() {
 
     // let (tx, _) = mpsc::unbounded_channel();
     let (tx, _) = broadcast::channel(10); // Use broadcast::chanel instead of mpsc::unbounded_channel
-    let tx = Arc::new(tx); // ✅ Wrap in Arc
+    let tx = Arc::new(tx); // Wrap in Arc
 
-    tokio::spawn(network::start_websocket_server((*tx).clone())); // ✅ Fix type mismatch
-    // tokio::spawn(video::start_video_stream(tx.clone())); // ✅ Start video stream
+    tokio::spawn(network::start_websocket_server((*tx).clone())); // Fix type mismatch
+    // tokio::spawn(video::start_video_stream(tx.clone())); // Start video stream
 
 
     // Check if ADB is available
@@ -83,12 +84,21 @@ async fn main() {
         Ok(selected_device) => {
             println!("Selected device: {} ({})", selected_device.id, selected_device.model);
 
-            // ✅ Start the video stream with the correct device ID
+            // Start the video stream with the correct device ID
             let tx_clone = tx.clone();
             let device_id = selected_device.id.clone(); // Clone device ID
             
             tokio::spawn(async move {
                 video::start_video_stream(tx_clone, device_id).await;
+            });
+
+            // Start gui
+            let rx = tx.subscribe();
+            tokio::spawn(async move {
+                match gui::start_gui(rx).await {
+                    Ok(_) => println!("GUI closed."),
+                    Err(e) => eprintln!("GUI error: {}", e),
+                }
             });
             
             match adb::capture_screen(&selected_device.id) {
@@ -102,4 +112,7 @@ async fn main() {
         }
         Err(e) => log::error!("Device selection failed: {}", e),
     }
+
+    tokio::signal::ctrl_c().await.expect("Failed to listen for shutdown signal");
+    println!("Shutting down...");
 }
