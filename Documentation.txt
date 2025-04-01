@@ -45,6 +45,30 @@ ws_sender.send() sends them to the client.
 The frontend receives real-time video frames via WebSocket.
 
 
+
+sdl2: I'll be using sdl2 crate to stream the screen 
+(Why not sdl3? , the official Rust bindings as of April 2025 only supports sdl2, if I want to use sdl3 I'll have to manually bind it.)
+	1. Install SDL2 dev libraries:
+		https://github.com/libsdl-org/SDL/releases
+	2. Extract to `C:\SDL2`
+	3. Set Environment Variables:
+		go to cmd(admin):
+			setx SDL2-2.28.5DIR "C:\SDL2-2.28.5"
+			If setx SDL2DIR doesn't work, manually add C:\SDL2-2.28.5\lib\x64 to the System PATH.
+	
+Ensure Rust Uses the MSVC Toolchain
+On Windows, Rust needs the MSVC (Microsoft Visual C++) toolchain.
+
+Check your Rust version with:
+rustc --version --verbose
+
+If you see gnu instead of msvc, switch to MSVC:
+rustup default stable-x86_64-pc-windows-msvc
+
+Then reinstall SDL2 bindings:
+cargo install sdl2
+
+
 ==========================================================================================================
 Starting MirrOx...
 ADB Version: Android Debug Bridge version 1.0.41
