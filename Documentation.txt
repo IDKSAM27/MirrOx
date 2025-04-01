@@ -68,6 +68,16 @@ rustup default stable-x86_64-pc-windows-msvc
 Then reinstall SDL2 bindings:
 cargo install sdl2
 
+Major factors for successfully enabling sdl2 features:
+  1. Copy the lib files of SDL2 and paste them into 
+    C:\Users\some_username\.rustup\toolchains\stable-x86_64-pc-windows-msvc\lib\rustlib\x86_64-pc-windows-msvc\lib 
+
+    and
+
+    C:\Users\some_username\.cargo\registry\src\index.crates.io-6f17d22bba15001f\windows_x86_64_msvc-0.52.6\lib
+  
+  2. Copy the SDL2.dll from the sdl2 extracted folder and paste it into the cwd of the project.
+
 
 ==========================================================================================================
 Starting MirrOx...
