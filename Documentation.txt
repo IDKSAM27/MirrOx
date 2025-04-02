@@ -85,6 +85,9 @@ I'll just start converting RGB TO YUV420, let's see what happens
 
 Well, SDL2 does not support YUV420 directly in Rust, I'll just manually convert it (YUV420 TO RGB) bcs I'm a Red Power Ranger (I think I'm sociopath)
 
+ADB was sending a compressed PNG file, I decoded it before sending it to sdl2
+
+Needed to crop the window size, Adjust SDL2 Window & Aspect Ratio
 
 ==========================================================================================================
 
