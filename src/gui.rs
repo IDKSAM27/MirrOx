@@ -17,7 +17,7 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
     let mut texture = texture_creator
-        .create_texture_streaming(PixelFormatEnum::RGB24, 800, 600)
+        .create_texture_streaming(PixelFormatEnum::RGB24, 1080, 2400)
         .map_err(|e| e.to_string())?;
 
     let mut event_pump = sdl_context.event_pump()?;
@@ -34,19 +34,26 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
 
             if &frame[..4] == &[137, 80, 78, 71] {
                 println!("PNG detected, decoding...");
-                match ImageReader::new(Cursor::new(frame))
+                match ImageReader::new(Cursor::new(&frame))
                     .with_guessed_format()
                     .map_err(|e| e.to_string())?
                     .decode()
                 {
                     Ok(img) => {
-                        let rgb_img = img.to_rgb8(); // Convert to RGB8
-                        texture.update(None, &rgb_img.into_raw(), 800 * 3).unwrap();
+                        let rgb_img = img.into_rgb8(); // Convert to RGB8
+                        println!("Decoded image size: {}x{}", rgb_img.width(), rgb_img.height());
+            
+                        if rgb_img.width() != 1080 || rgb_img.height() != 2400 {
+                            println!("Warning: Image size mismatch! Expected 1080x2400.");
+                        }
+            
+                        // Update texture (Stride = width * bytes_per_pixel)
+                        texture.update(None, &rgb_img, 1080 * 3).unwrap();
+                        canvas.copy(&texture, None, Some(Rect::new(0, 0, 1080, 2400)))?;
+                        canvas.present();
                     }
                     Err(e) => eprintln!("Failed to decode PNG: {}", e),
                 }
-            } else {
-                eprintln!("Unknown frame format received!");
             }
 
             canvas.copy(&texture, None, Some(Rect::new(0, 0, 800, 600)))?;
