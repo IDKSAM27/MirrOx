@@ -1,5 +1,5 @@
 fn main() {
-    let output = r#"Sampreet Patil is my name 
+    let output = r#"Something is my name 
     level: 69"#;
 
     let test = extract_battery_level(output);

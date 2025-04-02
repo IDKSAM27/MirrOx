@@ -31,7 +31,8 @@ Implement PNG/JPEG Parsing in `video.rs`
 Parse Screenshot into PNG/JPEG 
 I'll use `tokio` and `warp` crates to create a WebSocket server.
 
-🔹 Final Flow
+
+# Final Flow
 video::start_video_stream(tx.clone()) sends frames into tx.
 
 network::start_websocket_server(tx.clone()) handles WebSocket connections.
@@ -43,7 +44,6 @@ rx receives frames.
 ws_sender.send() sends them to the client.
 
 The frontend receives real-time video frames via WebSocket.
-
 
 
 sdl2: I'll be using sdl2 crate to stream the screen 
@@ -116,8 +116,8 @@ PS D:\Projects\MirrOx>
 
 ==========================================================================================================
 
-📌 Phase 1: Core ADB & Device Communication (Current Stage)
-✅ You’ve already implemented:
+# Phase 1: Core ADB & Device Communication (Current Stage)
+- I've already implemented:
 
 check_adb → Check if ADB is installed
 
@@ -145,8 +145,8 @@ Improve Logging & Error Handling:
 
 Add logs for debugging (use log crate)
 
-📌 Phase 2: Implement Screen Mirroring
-🔹 Major Tasks:
+# Phase 2: Implement Screen Mirroring
+- Major Tasks:
 
 Capture Device Screen via ADB
 
@@ -165,7 +165,7 @@ Stream Images to the Frontend
 Convert screenshots into a video stream
 
 Use a WebSocket or raw TCP connection for real-time updates
-    ✅ Plan
+    - Plan
     Continuously capture screenshots using ADB.
 
     Convert them into a video stream (we'll start with rapid sequential images).
@@ -182,8 +182,8 @@ Implement basic keyboard input handling
 
 
 
-📌 Phase 3: Optimize for Performance
-🔹 Next Enhancements:
+# Phase 3: Optimize for Performance
+- Next Enhancements:
 
 Reduce Latency
 
@@ -201,8 +201,8 @@ Ensure it works on Windows, Linux, and Mac
 
 
 
-📌 Phase 4: Build a UI (Optional)
-🔹 Frontend Choices:
+# Phase 4: Build a UI (Optional)
+- Frontend Choices:
 
 TUI (Terminal UI) → Use ratatui for CLI mirroring
 
