@@ -79,6 +79,13 @@ Major factors for successfully enabling sdl2 features:
   2. Copy the SDL2.dll from the sdl2 extracted folder and paste it into the cwd of the project.
 
 
+# Fan'fuqing'tastic, ADB is sending a different format (not RGB24, maybe YUV420), if not YUV420 I'm pretty much screwed.
+
+I'll just start converting RGB TO YUV420, let's see what happens
+
+Well, SDL2 does not support YUV420 directly in Rust, I'll just manually convert it (YUV420 TO RGB) bcs I'm a Red Power Ranger (I think I'm sociopath)
+
+
 ==========================================================================================================
 
 Starting MirrOx...
