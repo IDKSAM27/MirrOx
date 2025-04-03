@@ -176,6 +176,12 @@ Use a WebSocket or raw TCP connection for real-time updates
 
     Send images to the frontend using a WebSocket or TCP.
 
+Make the window always start in maximized.
+
+Enable window resizing.
+
+Ensure the mirrored phone screen scales correctly inside the SDL window.
+
 
 
 
@@ -184,11 +190,7 @@ TODO: Next Steps (To-Do):
 
 
 
-Make the window always start in fullscreen.
-
-Enable window resizing.
-
-Ensure the mirrored phone screen scales correctly inside the SDL window.
+Adding landscape/horizontal device mirroring support
 
 Keyboard & Mouse Input Support
 
