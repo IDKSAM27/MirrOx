@@ -7,19 +7,21 @@ use std::io::Cursor;
 pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
-    let window = video_subsystem
-        .window("MirrOx", 1920, 1080)
+    let mut window = video_subsystem
+        .window("MirrOx", 800, 600)
         .position_centered()
+        .resizable() // allows resizing of the window, quite imp
         .build()
         .map_err(|e| e.to_string())?;
 
+    window.maximize();
 
     // Get window size BEFORE moving window into canvas
     let (win_width, win_height) = window.size();
     println!("Window Size: {}x{}", win_width, win_height);
     
     // Now move window into canvas
-    let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+    let mut canvas = window.into_canvas().accelerated().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
     let mut texture = texture_creator
         .create_texture_streaming(PixelFormatEnum::RGB24, 1080, 2400)
@@ -60,28 +62,55 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
                 }
             }
 
-            // Original phone resolution
-            let phone_width = 1080;
-            let phone_height = 2400;
+            // // Original phone resolution
+            // let phone_width = 1080;
+            // let phone_height = 2400;
 
-            // Calculate scaling factor to fit within window while keeping aspect ratio
-            let scale_x = win_width as f32 / phone_width as f32;
-            let scale_y = win_height as f32 / phone_height as f32;
-            let scale = scale_x.min(scale_y); // Use the smaller scale to fit
+            // // Calculate scaling factor to fit within window while keeping aspect ratio
+            // let scale_x = win_width as f32 / phone_width as f32;
+            // let scale_y = win_height as f32 / phone_height as f32;
+            // let scale = scale_x.min(scale_y); // Use the smaller scale to fit
 
-            // Calculate new size
-            let new_width = (phone_width as f32 * scale) as u32;
-            let new_height = (phone_height as f32 * scale) as u32;
+            // // Calculate new size
+            // let new_width = (phone_width as f32 * scale) as u32;
+            // let new_height = (phone_height as f32 * scale) as u32;
 
-            // Centering
-            let x_offset = (win_width - new_width) / 2;
-            let y_offset = (win_height - new_height) / 2;
+            // // Centering
+            // let x_offset = (win_width - new_width) / 2;
+            // let y_offset = (win_height - new_height) / 2;
 
-            // Render image
-            let dst_rect = Rect::new(x_offset as i32, y_offset as i32, new_width, new_height);
+            // // Render image
+            // let dst_rect = Rect::new(x_offset as i32, y_offset as i32, new_width, new_height);
+            // canvas.clear();
+            // canvas.copy(&texture, None, dst_rect)?; // Scale & center image
+            // canvas.present();
+
+            // Set clear color to black (prevents ghosting effect)
+            canvas.set_draw_color(sdl2::pixels::Color::BLACK);
             canvas.clear();
-            canvas.copy(&texture, None, dst_rect)?; // Scale & center image
+
+            // Maintain correct aspect ratio for phone screen (1080x2400)
+            let phone_aspect_ratio = 1080.0 / 2400.0;
+            let win_aspect_ratio = win_width as f32 / win_height as f32;
+
+            let display_rect = if win_aspect_ratio > phone_aspect_ratio {
+                let new_width = (win_height as f32 * phone_aspect_ratio) as u32;
+                let x_offset = (win_width - new_width) / 2;
+                Rect::new(x_offset as i32, 0, new_width, win_height)
+            } else {
+                let new_height = (win_width as f32 / phone_aspect_ratio) as u32;
+                let y_offset = (win_height - new_height) / 2;
+                Rect::new(0, y_offset as i32, win_width, new_height)
+            };
+
+            // Clear screen before rendering new frame
+            canvas.clear();
+
+            // Render the phone screen inside the display_rect
+            canvas.copy(&texture, None, Some(display_rect))?;
             canvas.present();
+            
+
         }
 
         for event in event_pump.poll_iter() {
