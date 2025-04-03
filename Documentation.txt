@@ -182,6 +182,8 @@ Enable window resizing.
 
 Ensure the mirrored phone screen scales correctly inside the SDL window.
 
+Adding landscape/horizontal device mirroring support
+
 
 
 
@@ -189,8 +191,6 @@ TODO: Next Steps (To-Do):
 
 
 
-
-Adding landscape/horizontal device mirroring support
 
 Keyboard & Mouse Input Support
 

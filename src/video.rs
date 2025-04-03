@@ -17,6 +17,7 @@ pub fn parse_screenshot(raw_data: Vec<u8>, output_path: &str) -> Result<(), Stri
 pub async fn start_video_stream(tx: Arc<broadcast::Sender<Vec<u8>>>, device_id: String) {
     loop {
         // TODO: remove the No active WebSockte listeners loop
+        // TODO: also terminate the application if the window is closed
         match crate::adb::capture_screen(&device_id) { // Change to your actual device ID logic
             Ok(raw_data) => {
                 if tx.send(raw_data).is_err() {
