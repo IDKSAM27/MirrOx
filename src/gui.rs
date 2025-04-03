@@ -2,7 +2,6 @@ use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use tokio::sync::broadcast::Receiver;
 use image::io::Reader as ImageReader;
-// use image::DynamicImage;
 use std::io::Cursor;
 
 pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
@@ -13,6 +12,7 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
         .position_centered()
         .build()
         .map_err(|e| e.to_string())?;
+
 
     // Get window size BEFORE moving window into canvas
     let (win_width, win_height) = window.size();

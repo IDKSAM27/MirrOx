@@ -184,6 +184,12 @@ TODO: Next Steps (To-Do):
 
 
 
+Make the window always start in fullscreen.
+
+Enable window resizing.
+
+Ensure the mirrored phone screen scales correctly inside the SDL window.
+
 Keyboard & Mouse Input Support
 
 Send touch/mouse inputs via adb shell input tap X Y
