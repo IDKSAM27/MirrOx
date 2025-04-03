@@ -10,3 +10,9 @@ We'll use:
 
     Socket (TCP/UDP/WebSockets) for streaming
 
+PERMISSIONS IN ANDROIDMANIFEST.XML
+Why These Permissions?
+FOREGROUND_SERVICE → Required for running a foreground service (ScreenCaptureService.java) that captures the screen.
+INTERNET → Needed to send the captured screen/audio data to your Rust client.
+RECORD_AUDIO → Required if you also want to capture and stream audio from the device.
+

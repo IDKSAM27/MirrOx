@@ -40,7 +40,10 @@ android {
 }
 
 dependencies {
-
+    implementation(libs.androidx.fragment)  // Use the alias from TOML
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.core)
+    implementation(libs.androidx.activity)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
