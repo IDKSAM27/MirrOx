@@ -164,12 +164,6 @@ Use adb exec-out screencap -p to get a raw image
 
 Parse it into an image format (PNG/JPEG) in Rust
 
-
-
-TODO: Next Steps (To-Do):
-
-
-
 Stream Images to the Frontend
 
 Convert screenshots into a video stream
@@ -182,7 +176,21 @@ Use a WebSocket or raw TCP connection for real-time updates
 
     Send images to the frontend using a WebSocket or TCP.
 
+Make the window always start in maximized.
 
+Enable window resizing.
+
+Ensure the mirrored phone screen scales correctly inside the SDL window.
+
+
+
+
+TODO: Next Steps (To-Do):
+
+
+
+
+Adding landscape/horizontal device mirroring support
 
 Keyboard & Mouse Input Support
 
