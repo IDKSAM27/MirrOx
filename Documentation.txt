@@ -89,6 +89,41 @@ ADB was sending a compressed PNG file, I decoded it before sending it to sdl2
 
 Needed to crop the window size, Adjust SDL2 Window & Aspect Ratio
 
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Phase 3: 
+
+# I'm from future, this did't worked, the reason is below this
+I'll check whether /dev/graphics/fb0 is accessible:
+  adb shell ls -l /dev/graphics/
+
+  output:
+  total 0
+  crw-rw---- 1 system graphics 29,   0 2025-03-03 15:00 fb0
+
+  * crw-rw----:
+    * c → Character device (used for continuous streams like framebuffers).
+
+    * rw- rw---- → Permissions:
+
+      * Owner (system): Read & write.
+
+      * Group (graphics): Read & write.
+
+      * Others (---): No access.
+
+  * fb0 is your primary framebuffer device.
+  ** In short we cannot read using framebuffer, most modern android versions restricts direct framebuffer access for security reasons.
+
+
+So I won't be using screencap, istead of that I'll be using either Minicap or MediaProjection API:
+
+* Since Minicap is outdated and sometimes requires root, it's not the best choice.
+* Instead, I should use the MediaProjection API + H.264 encoding (like Scrcpy).
+* This will (hopefully) reduce latency and improve performance.
+
 ==========================================================================================================
 
 Starting MirrOx...
@@ -189,7 +224,45 @@ Adding landscape/horizontal device mirroring support
 
 TODO: Next Steps (To-Do):
 
+✅ Step 1: Replace screencap with MediaProjection API
+Since screencap is slow, we'll use MediaProjection API instead. However, MediaProjection is an Android API and requires an app running on the phone.
 
+🔹 Approach:
+
+Create a lightweight Android app (similar to Scrcpy's "scrcpy-server").
+
+The app will:
+
+  Request MediaProjection permission.
+
+  Capture screen frames in H.264 format.
+
+  Stream frames over ADB (TCP or Unix socket) to your PC.
+
+On the PC (MirrOx), we decode the H.264 stream and display it in Rust (using ffmpeg or wgpu).
+
+✅ Step 2: Implement H.264 Hardware Encoding
+  The Android app should compress screen frames using H.264 before sending them.
+
+  This makes the data much smaller and faster to transfer.
+
+  We can use Android’s MediaCodec API for hardware-accelerated encoding.
+
+✅ Step 3: Transfer Data Over ADB (Fast Method)
+  Instead of using adb exec-out, Scrcpy sets up a direct socket connection over ADB.
+
+  We should set up an ADB reverse connection (adb reverse) to stream data efficiently.
+
+  This removes the need for adb exec-out, which has extra overhead.
+
+✅ Step 4: Decode & Render the Stream in Rust
+  We receive the H.264 stream on the PC.
+
+  Decode it using FFmpeg or wgpu.
+
+  Display it efficiently using SDL2 or GPU acceleration.
+
+------------------------------------------------------------------------------------
 
 
 Keyboard & Mouse Input Support

@@ -1,0 +1,12 @@
+Let's start with a barebones Android server that captures the screen and streams it over a socket.
+
+We'll use:
+
+    MediaProjection API for screen capture
+
+    MediaCodec for H.264 encoding
+
+    AudioRecord for audio capture
+
+    Socket (TCP/UDP/WebSockets) for streaming
+

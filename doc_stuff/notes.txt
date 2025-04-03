@@ -1,0 +1,57 @@
+# scrcpy working:
+
+MediaProjection API (Android 5+)
+    Scrcpy uses the MediaProjection API, which is the official way to capture the screen.
+    This API provides a virtual display, which Scrcpy captures and encodes.
+
+H.264 / H.265 Hardware Encoding (Faster than Raw Frames)
+    Scrcpy does not send raw frames (like screencap does, which is slow).
+    Instead, it compresses frames using the phone’s hardware encoder (MediaCodec) before sending them over ADB.
+
+Efficient ADB Data Transfer
+    Instead of saving frames as PNG/JPEG, Scrcpy streams an H.264 video over ADB.
+    It uses an efficient ADB socket connection to minimize latency.
+
+Decoding & Displaying on PC
+    On the PC, Scrcpy decodes the H.264 stream using FFmpeg or OpenGL and renders it in real-time.
+
+------------------------------------------------------------------------------------------
+Feature	            screencap (What MirrOx Uses Now)	Scrcpy
+------------------------------------------------------------------------------------------
+Frame Format	    Raw PNG/JPEG (Large Size)	        H.264 Video Stream (Compressed)
+Encoding Method	    None (Huge Data Size)	            Hardware Encoding (Efficient)
+Transfer Method	    ADB Pull (Slow)	                    Socket Streaming (Fast)
+Latency	            High (~1s delay)	                Low (<50ms)
+------------------------------------------------------------------------------------------
+
+# Minicap
+
+* Third-party library (not part of Android's official APIs).
+* Uses Android's private SurfaceFlinger API to capture frames.
+* Requires root access on some devices.
+* Faster than screencap, but less efficient than MediaProjection.
+* Used in older screen mirroring tools (before MediaProjection became available).
+
+# MediaProjection API (Official Android API)
+
+* Official Android API (available since Android 5.0 - Lollipop).
+* Allows apps to capture the screen without root.
+* Used by Scrcpy & other modern mirroring tools.
+* More efficient and fully supported by Android.
+* Can leverage hardware encoding for low-latency streaming.
+
+------------------------------------------------------------------------------------------------------------
+Feature	            Minicap	                                            MediaProjection API
+------------------------------------------------------------------------------------------------------------
+Official API	    No (Unofficial)	                                    Yes (Google API)
+Root Required?	    Some devices need root	                            No root needed
+Performance	        Fast, but not as efficient as MediaProjection	    Faster, supports hardware encoding
+Compatibility	    Works on most devices (but may break on updates)	Works on all devices Android 5+
+Used by Scrcpy?	    No	                                                Yes
+------------------------------------------------------------------------------------------------------------
+
+Since Minicap is outdated and sometimes requires root, it's not the best choice.
+
+Instead, we should use the MediaProjection API + H.264 encoding (like Scrcpy).
+
+This will greatly reduce latency and improve performance.

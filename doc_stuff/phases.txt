@@ -1,0 +1,51 @@
+Updated Plan for MirrOx with Audio & Low Latency
+Since we need to handle both screen and audio mirroring while reducing latency, let's break it down into structured phases:
+
+Phase 1: Android Server for Efficient Screen & Audio Capture
+    We will write a lightweight Android server that efficiently captures and streams screen & audio data.
+
+    1. Screen Capture (Low Latency)
+
+        Use MediaProjection API to capture the screen.
+
+        Encode using MediaCodec (H.264 / H.265) for efficient streaming.
+
+        Stream over TCP/WebSockets/RTSP.
+
+    2. Audio Capture
+
+        Use AAudio or AudioRecord API to capture system audio.
+
+        Encode using AAC (or Opus).
+
+        Stream over TCP/WebSockets (preferably in sync with video).
+
+Phase 2: Rust Client for Decoding & Rendering
+    We will modify MirrOx to receive and process both video & audio streams.
+
+    1. Receive & Decode Video Stream
+
+        Use FFmpeg, GStreamer, or AV1 decoder in Rust.
+
+        Utilize wgpu/vulkan for GPU acceleration.
+
+    2. Receive & Play Audio Stream
+
+        Use CPAL or rodio for audio playback.
+
+        Synchronize with video using timestamps.
+
+Phase 3: Optimize Latency
+
+    1. Bypass screencap for raw framebuffer access (optional)
+
+    2. Optimize H.264 encoding settings for minimal delay
+
+    3. Use UDP instead of TCP/WebSockets for low-latency streaming
+
+    4. Implement frame skipping & buffering mechanisms
+
+    5. Utilize Vulkan/WGPU for hardware-accelerated decoding
+
+Next Step: Implement Android Server
+Since MirrOx already handles receiving frames, the first step is to write the Android server to stream both screen and audio efficiently.
