@@ -27,18 +27,17 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
 
     let mut event_pump = sdl_context.event_pump()?;
 
-
-
     'running: loop {
         if let Ok(frame) = rx.try_recv() {
-            println!("{:?}", &frame[..100]);
+            // Debug statement
+            // println!("{:?}", &frame[..100]);
 
 
             // Debug statement
-            println!("Received frame size: {}", frame.len());
+            // println!("Received frame size: {}", frame.len());
 
             if &frame[..4] == &[137, 80, 78, 71] {
-                println!("PNG detected, decoding...");
+                // println!("PNG detected, decoding...");
                 match ImageReader::new(Cursor::new(&frame))
                     .with_guessed_format()
                     .map_err(|e| e.to_string())?
@@ -46,7 +45,7 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
                 {
                     Ok(img) => {
                         let rgb_img = img.into_rgb8(); // Convert to RGB8
-                        println!("Decoded image size: {}x{}", rgb_img.width(), rgb_img.height());
+                        // println!("Decoded image size: {}x{}", rgb_img.width(), rgb_img.height());
             
                         if rgb_img.width() != 1080 || rgb_img.height() != 2400 {
                             println!("Warning: Image size mismatch! Expected 1080x2400.");
@@ -60,10 +59,6 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
                     Err(e) => eprintln!("Failed to decode PNG: {}", e),
                 }
             }
-
-            // canvas.copy(&texture, None, Some(Rect::new(0, 0, 1080, 2400)))?;
-            // canvas.copy(&texture, None, None)?;
-            // Get the window size
 
             // Original phone resolution
             let phone_width = 1080;

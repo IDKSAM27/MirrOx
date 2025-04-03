@@ -164,12 +164,6 @@ Use adb exec-out screencap -p to get a raw image
 
 Parse it into an image format (PNG/JPEG) in Rust
 
-
-
-TODO: Next Steps (To-Do):
-
-
-
 Stream Images to the Frontend
 
 Convert screenshots into a video stream
@@ -181,6 +175,12 @@ Use a WebSocket or raw TCP connection for real-time updates
     Convert them into a video stream (we'll start with rapid sequential images).
 
     Send images to the frontend using a WebSocket or TCP.
+
+
+
+
+TODO: Next Steps (To-Do):
+
 
 
 
