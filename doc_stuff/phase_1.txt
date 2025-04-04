@@ -2,9 +2,13 @@ Let's start with a barebones Android server that captures the screen and streams
 
 We'll use:
 
-    MediaProjection API for screen capture
+    MediaProjection API for screen capture;
 
-    MediaCodec for H.264 encoding
+    MediaCodec for H.264 encoding:
+        Initialize MediaCodec for H.264 encoding
+        Use MediaProjection to capture the screen
+        Feed captured frames to MediaCodec
+        Extract encoded H.264 data and stream it
 
     AudioRecord for audio capture
 
