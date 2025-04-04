@@ -20,19 +20,19 @@ public class MainActivity extends AppCompatActivity {
 
         // Register the ActivityResultLauncher
         screenCaptureLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                new ActivityResultCallback<ActivityResult>() {
-                    @Override
-                    public void onActivityResult(ActivityResult result) {
-                        if (result.getResultCode() == Activity.RESULT_OK) {
-                            Intent data = result.getData();
-                            // Handle the result (start your service)
-                            Intent serviceIntent = new Intent(MainActivity.this, ScreenCaptureService.class);
-                            serviceIntent.putExtra("data", data);
-                            startService(serviceIntent);
-                        }
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        Intent data = result.getData();
+                        Intent serviceIntent = new Intent(MainActivity.this, ScreenCaptureService.class);
+                        serviceIntent.putExtra("RESULT_CODE", result.getResultCode());
+                        serviceIntent.putExtra("DATA", data);
+                        startService(serviceIntent);
                     }
                 }
+            }
         );
 
         // Start screen capture request

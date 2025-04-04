@@ -2,13 +2,42 @@ Let's start with a barebones Android server that captures the screen and streams
 
 We'll use:
 
-    MediaProjection API for screen capture
+    MediaProjection API for screen capture;
 
-    MediaCodec for H.264 encoding
+    MediaCodec for H.264 encoding:
+        Initialize MediaCodec for H.264 encoding
+        Use MediaProjection to capture the screen
+        Feed captured frames to MediaCodec
+        Extract encoded H.264 data and stream it
 
-    AudioRecord for audio capture
+        Steps for MediaProjection Integration
+            Request screen capture permission in MainActivity.java.
+            Start ScreenCaptureService and pass the permission token.
+            Modify ScreenCaptureService.java to use MediaProjection.
+            Feed frames into MediaCodec for encoding.
 
-    Socket (TCP/UDP/WebSockets) for streaming
+    Socket (TCP/UDP/WebSockets) for streaming:
+        Steps to Implement Streaming to Rust
+        1. Set up a TCP server in Android
+            The server will listen for incoming connections from the Rust client.
+            It will send H.264 frames as they are encoded.
+
+        2. Modify MediaProjection Service
+            After encoding each frame, send it over the socket instead of storing it.
+
+        3. Handle network buffering & errors
+            Ensure proper error handling and reconnection logic.
+
+        4. Modify Rust client to receive the stream
+            Establish a TCP connection to the Android server.
+            Read H.264 packets, decode them, and render using wgpu.
+
+        I'll write the necessary Java code for this.
+            This Java class sets up a TCP server that listens for a connection from the Rust client.
+                * When a client connects, it sends H.264 encoded frames via sendFrame(byte[] data).
+                * We will call sendFrame() inside the MediaProjection capture logic.
+
+    AudioRecord for audio capture:
 
 PERMISSIONS IN ANDROIDMANIFEST.XML
 Why These Permissions?

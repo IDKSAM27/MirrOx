@@ -4,7 +4,6 @@ mod adb;
 mod video;
 mod network;
 mod gui;
-mod tcp_client;
 use crate::adb::*;
 use tokio::sync::broadcast;
 use std::sync::Arc;
@@ -26,11 +25,6 @@ async fn main() {
     if let Err(e) = adb::check_adb() {
         log::error!("ADB check failed: {}", e);
         return;
-    }
-
-    match tcp_client::start_client() {
-        Ok(_) => println!("Client started successfully"),
-        Err(e) => eprintln!("Error: {}", e),
     }
 
     // List connected devices
