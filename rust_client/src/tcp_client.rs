@@ -48,7 +48,8 @@ pub fn start_client() -> Result<(), std::io::Error> {
                 Ok(img) => {
                     let rgb_img = img.into_rgb8();
                     texture.update(None, &rgb_img, 1080 * 3).unwrap();
-                    canvas.copy(&texture, None, Some(Rect::new(0, 0, 1080, 2400)))?;
+                    canvas.copy(&texture, None, Some(Rect::new(0, 0, 1080, 2400)))
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                     canvas.present();
                 }
                 Err(e) => eprintln!("Failed to decode PNG: {}", e),
