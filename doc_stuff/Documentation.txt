@@ -119,6 +119,7 @@ I'll check whether /dev/graphics/fb0 is accessible:
 
 
 So I won't be using screencap, istead of that I'll be using either Minicap or MediaProjection API:
+(MediaProjection it is!)
 
 * Since Minicap is outdated and sometimes requires root, it's not the best choice.
 * Instead, I should use the MediaProjection API + H.264 encoding (like Scrcpy).
@@ -224,10 +225,10 @@ Adding landscape/horizontal device mirroring support
 
 TODO: Next Steps (To-Do):
 
-✅ Step 1: Replace screencap with MediaProjection API
+Step 1: Replace screencap with MediaProjection API
 Since screencap is slow, we'll use MediaProjection API instead. However, MediaProjection is an Android API and requires an app running on the phone.
 
-🔹 Approach:
+ Approach:
 
 Create a lightweight Android app (similar to Scrcpy's "scrcpy-server").
 
@@ -241,21 +242,21 @@ The app will:
 
 On the PC (MirrOx), we decode the H.264 stream and display it in Rust (using ffmpeg or wgpu).
 
-✅ Step 2: Implement H.264 Hardware Encoding
+Step 2: Implement H.264 Hardware Encoding
   The Android app should compress screen frames using H.264 before sending them.
 
   This makes the data much smaller and faster to transfer.
 
   We can use Android’s MediaCodec API for hardware-accelerated encoding.
 
-✅ Step 3: Transfer Data Over ADB (Fast Method)
+Step 3: Transfer Data Over ADB (Fast Method)
   Instead of using adb exec-out, Scrcpy sets up a direct socket connection over ADB.
 
   We should set up an ADB reverse connection (adb reverse) to stream data efficiently.
 
   This removes the need for adb exec-out, which has extra overhead.
 
-✅ Step 4: Decode & Render the Stream in Rust
+Step 4: Decode & Render the Stream in Rust
   We receive the H.264 stream on the PC.
 
   Decode it using FFmpeg or wgpu.
