@@ -28,10 +28,7 @@ async fn main() {
         return;
     }
 
-    match tcp_client::start_client() {
-        Ok(_) => println!("Client started successfully"),
-        Err(e) => eprintln!("Error: {}", e),
-    }
+
 
     // List connected devices
     match adb::list_devices() {
@@ -56,6 +53,11 @@ async fn main() {
             eprintln!("Error: {}", e);
             return; // Exit early if list_devices() fails
         }
+    }
+
+    match tcp_client::start_client() {
+        Ok(_) => println!("Client started successfully"),
+        Err(e) => eprintln!("Error: {}", e),
     }
 
     match adb::say_hello_from_device() {

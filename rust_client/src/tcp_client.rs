@@ -5,6 +5,7 @@ use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use image::io::Reader as ImageReader;
 use std::io::Cursor;
+use std::io; // <- Removed unused `ErrorKind`
 
 pub fn start_client() -> Result<(), std::io::Error> {
     let sdl_context = sdl2::init().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -24,22 +25,37 @@ pub fn start_client() -> Result<(), std::io::Error> {
 
     let mut event_pump = sdl_context.event_pump().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
-    // Connect to the Android server
+    println!("Connecting to server...");
     let mut stream = TcpStream::connect("192.168.1.100:8080")?; // Change IP
+
+    println!("Setting read timeout...");
     stream.set_read_timeout(Some(Duration::from_millis(100)))?;
 
-    let mut buffer = vec![0; 1024 * 64]; // 64KB buffer
+    let mut buffer = vec![0u8; 1024 * 64]; // 64KB buffer
+    println!("Entering main loop...");
 
     'running: loop {
-        // Read incoming frame data
         let bytes_read = match stream.read(&mut buffer) {
-            Ok(size) if size > 0 => size,
-            Ok(_) => continue,
-            Err(_) => continue,
+            Ok(size) if size > 0 => {
+                println!("Received {} bytes", size);
+                size
+            }
+            Ok(_) => {
+                println!("Server sent empty data");
+                break;
+            }
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                println!("No data yet, retrying...");
+                continue;
+            }
+            Err(e) => {
+                eprintln!("Failed to read from server: {}", e);
+                break;
+            }
         };
 
-        // Decode the image
-        if &buffer[..4] == &[137, 80, 78, 71] {
+        // Decode the image if it's a PNG
+        if buffer.starts_with(&[137, 80, 78, 71]) {
             match ImageReader::new(Cursor::new(&buffer[..bytes_read]))
                 .with_guessed_format()
                 .unwrap()
