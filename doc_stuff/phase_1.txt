@@ -45,3 +45,10 @@ FOREGROUND_SERVICE → Required for running a foreground service (ScreenCaptureS
 INTERNET → Needed to send the captured screen/audio data to your Rust client.
 RECORD_AUDIO → Required if you also want to capture and stream audio from the device.
 
+
+ERROR: 
+Multiple looping:
+I'm using AppCompatActivity (which is from the AndroidX AppCompat library), but my activity is not using a compatible theme.
+
+Fix
+I just need to make sure my app’s theme is a descendant of Theme.AppCompat, not the default Theme.MaterialComponents or similar. (Change them in res/values/themes.xml)
