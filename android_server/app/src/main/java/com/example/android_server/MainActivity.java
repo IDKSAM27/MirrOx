@@ -1,48 +1,61 @@
-package com.example.android_server;  // Ensure your package is correct
+package com.example.android_server;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.media.projection.MediaProjectionManager;
+import android.os.Build;
 import android.os.Bundle;
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
+import android.widget.Toast;
+
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
+    private static final int REQUEST_CODE = 1000;
 
-    private ActivityResultLauncher<Intent> screenCaptureLauncher;
-
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP) // API 21+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Register the ActivityResultLauncher
-        screenCaptureLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            new ActivityResultCallback<ActivityResult>() {
-                @Override
-                public void onActivityResult(ActivityResult result) {
-                    if (result.getResultCode() == Activity.RESULT_OK) {
-                        Intent data = result.getData();
-                        Intent serviceIntent = new Intent(MainActivity.this, ScreenCaptureService.class);
-                        serviceIntent.putExtra("RESULT_CODE", result.getResultCode());
-                        serviceIntent.putExtra("DATA", data);
-                        startService(serviceIntent);
-                    }
-                }
-            }
-        );
+        // Felt cute might delete it later
+        // Remove if-else, it is not version checker is not necessary.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            MediaProjectionManager mProjectionManager =
+                    (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
-        // Start screen capture request
-        startScreenCapture();
+            Intent captureIntent = mProjectionManager.createScreenCaptureIntent();
+            startActivityForResult(captureIntent, REQUEST_CODE);
+        } else {
+            Toast.makeText(this, "Your Android version is not supported", Toast.LENGTH_SHORT).show();
+            finish();
+        }
     }
 
-    private void startScreenCapture() {
-        MediaProjectionManager mediaProjectionManager =
-                (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
-        Intent screenCaptureIntent = mediaProjectionManager.createScreenCaptureIntent();
-        screenCaptureLauncher.launch(screenCaptureIntent);
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUEST_CODE) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                Intent serviceIntent = new Intent(this, ScreenCaptureService.class);
+                serviceIntent.putExtra("resultCode", resultCode);
+                serviceIntent.putExtra("data", data);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(serviceIntent);
+                } else {
+                    startService(serviceIntent);
+                }
+
+                finish();
+            } else {
+                Toast.makeText(this, "Screen capture permission denied", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
     }
 }

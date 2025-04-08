@@ -5,7 +5,7 @@ use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use image::io::Reader as ImageReader;
 use std::io::Cursor;
-use std::io; // <- Removed unused `ErrorKind`
+use std::io; 
 
 pub fn start_client() -> Result<(), std::io::Error> {
     let sdl_context = sdl2::init().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;

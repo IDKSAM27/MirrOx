@@ -125,6 +125,11 @@ So I won't be using screencap, istead of that I'll be using either Minicap or Me
 * Instead, I should use the MediaProjection API + H.264 encoding (like Scrcpy).
 * This will (hopefully) reduce latency and improve performance.
 
+
+
+REMINDER: ALWAYS GO THROUGH LOGCAT IN ANDROID STUDIO
+default logcat filter: package:mine
+
 ==========================================================================================================
 
 Starting MirrOx...
