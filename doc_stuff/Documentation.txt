@@ -128,7 +128,7 @@ So I won't be using screencap, istead of that I'll be using either Minicap or Me
 
 
 REMINDER: ALWAYS GO THROUGH LOGCAT IN ANDROID STUDIO
-
+default logcat filter: package:mine
 
 ==========================================================================================================
 
