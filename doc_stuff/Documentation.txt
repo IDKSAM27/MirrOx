@@ -225,13 +225,14 @@ Ensure the mirrored phone screen scales correctly inside the SDL window.
 
 Adding landscape/horizontal device mirroring support
 
+Step 1: Replace screencap with MediaProjection API
+Since screencap is slow, we'll use MediaProjection API instead. However, MediaProjection is an Android API and requires an app running on the phone.
 
 
 
 TODO: Next Steps (To-Do):
 
-Step 1: Replace screencap with MediaProjection API
-Since screencap is slow, we'll use MediaProjection API instead. However, MediaProjection is an Android API and requires an app running on the phone.
+
 
  Approach:
 
