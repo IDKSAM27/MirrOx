@@ -55,3 +55,11 @@ Since Minicap is outdated and sometimes requires root, it's not the best choice.
 Instead, we should use the MediaProjection API + H.264 encoding (like Scrcpy).
 
 This will greatly reduce latency and improve performance.
+
+
+
+mirrox-server CHECK:
+
+adb push app/build/libs/mirrox_server-1.0.jar /data/local/tmp/  
+
+adb exec-out app_process / com.mirrox.server.MainActivity > frame.h264

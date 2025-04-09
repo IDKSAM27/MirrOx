@@ -39,3 +39,18 @@ dependencies {
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 }
+
+// task to build a JAR file from Android Java sources
+tasks.register<Jar>("createJar") {
+    archiveBaseName.set("mirrox_server")
+    archiveVersion.set("1.0")
+    archiveClassifier.set("") // empty = clean .jar
+
+    from(android.sourceSets["main"].java.srcDirs) {
+        include("**/*.class")
+    }
+
+    // Set output path
+    destinationDirectory.set(file("$buildDir/libs"))
+}
+
