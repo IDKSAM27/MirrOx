@@ -1,63 +1,42 @@
-1. Connect & Communicate via ADB (USB)
- Set up Rust code to invoke ADB commands via std::process::Command
+Phase 1: ADB Setup & Server Deployment
+Push the Android server binary to the device
 
- Detect connected Android device using adb devices
+Use adb push to send the .jar or .apk or native binary (depending on implementation) to /data/local/tmp/.
 
- Push server binary (Android side) to /data/local/tmp/mirrox-server
+Start the server via adb shell
 
- Start server on Android via adb shell (e.g., CLASSPATH=... app_process ...)
-
- Forward port from device to host using adb forward tcp:PORT tcp:PORT (optional if using sockets)
+Use a command like adb shell CLASSPATH=/data/local/tmp/server.jar app_process / com.example.Server or similar for native binaries.
 
 
-2. Android Server (Headless)
- Run a minimal headless Android app/service (no UI) that:
+Phase 2: Communication via ADB (USB)
+Set up communication over ADB exec-out or forward
 
- Requests MediaProjection permission
+Use adb exec-out to get screen frames (or setup adb forward to connect to a local TCP socket from the server).
 
- Captures screen using MediaProjection + MediaCodec
-
- Encodes to H.264 stream
-
- Sends output through stdout (preferred) or socket (fallback)
+Handle the server's stdout/stderr for streaming video/audio data
 
 
-This can be an executable app_process class like scrcpy does.
+Phase 3: Rust Client Integration
+Read and decode data from ADB's stdout in Rust
+
+Pipe incoming binary stream (e.g., H.264 or MJPEG) from adb into the SDL window.
+
+Use ffmpeg, image, or sdl2 crates to decode and render
 
 
-3. Rust Client: Start & Receive Stream
- Use adb exec-out or adb shell to start server and read stdout stream
+Phase 4: Input Handling
+Capture mouse/keyboard events in the Rust client
 
- Parse raw H.264 video stream
+Send input events using ADB shell commands
 
- Decode using ffmpeg, gstreamer, or a custom decoder in Rust
-
- Render using sdl2, wgpu, or pixels crate
+e.g., adb shell input tap x y, input keyevent, input swipe, etc.
 
 
-4. Input Control (Keyboard/Mouse)
- Capture mouse/keyboard input on the host
+Optional Enhancements
 
- Translate inputs to ADB shell commands:
+Add USB device detection.
 
-adb shell input tap x y
+Implement a performance mode toggle (e.g., frame skipping, resolution).
 
-adb shell input keyevent KEYCODE
+Compress frames for lower latency.
 
- Implement touch simulation support for drag/scroll
-
-
-5. (Optional) Recording / Screenshot Support
- Add support to save the H.264 stream to a .mp4 file
-
- Enable screenshot capture on host (ffmpeg frame extract or SDL snapshot)
-
-
-6. Optimization & Stability
- Implement framerate limit / resolution scaling
-
- Handle disconnections and reconnections
-
- Add logs and graceful error handling
-
- Add command-line arguments: resolution, bitrate, device selection
