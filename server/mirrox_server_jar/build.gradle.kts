@@ -1,3 +1,4 @@
+val androidHome: String? = System.getenv("ANDROID_HOME")
 val androidJar = file("C:/Users/Sampreet/AppData/Local/Android/Sdk/platforms/android-35/android.jar")
 
 dependencies {
