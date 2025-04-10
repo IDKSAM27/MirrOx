@@ -62,6 +62,10 @@ mirrox-server CHECK:
 
 gradlew.bat buildMirroxJar 
 
+jar tf build/libs/mirrox_server-1.0.jar
+
 adb push build/libs/mirrox_server-1.0.jar /data/local/tmp/  
 
 adb exec-out app_process / com.mirrox.server.MainActivity > frame.h264
+
+adb logcat | grep mirrox
