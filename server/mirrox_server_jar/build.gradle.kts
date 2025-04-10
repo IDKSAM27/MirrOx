@@ -27,6 +27,6 @@ tasks.register<Jar>("buildMirroxJar") {
     from(sourceSets["main"].output)
 
     manifest {
-        attributes["Main-Class"] = "com.mirrox.server.MainActivity"
+        attributes["Main-Class"] = "com.mirrox.server.MirroxServer"
     }
 }

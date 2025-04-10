@@ -69,3 +69,12 @@ adb push build/libs/mirrox_server-1.0.jar /data/local/tmp/
 adb exec-out app_process / com.mirrox.server.MainActivity > frame.h264
 
 adb logcat | grep mirrox
+
+=======================================================================================================================================
+
+## Why MainActivity as main in the jar pushing fails!!!!!
+app_process is meant for running headless Java classes.
+
+MainActivity extends android.app.Activity, which requires a full Android app context and must be launched by the system.
+
+Since we’re launching a .jar, there’s no AndroidManifest, no APK, and no system context, so the Activity fails to launch and causes Aborted.
