@@ -78,6 +78,7 @@ public class ScreenEncoder {
                     encodedData.get(outData);
 
                     try {
+                        Log.i(TAG, "Writing frame of size " + outData.length);
                         System.out.write(outData);
                         System.out.flush();
                     } catch (IOException e) {

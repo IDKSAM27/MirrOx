@@ -60,6 +60,8 @@ This will greatly reduce latency and improve performance.
 
 mirrox-server CHECK:
 
-adb push app/build/libs/mirrox_server-1.0.jar /data/local/tmp/  
+gradlew.bat buildMirroxJar 
+
+adb push build/libs/mirrox_server-1.0.jar /data/local/tmp/  
 
 adb exec-out app_process / com.mirrox.server.MainActivity > frame.h264
