@@ -1,4 +1,5 @@
 Phase 1: ADB Setup & Server Deployment 
 Push the Android server binary to the device: .jar
 
-Used adb push 
+Used adb push to send the .jar to /data/local/tmp/
+
