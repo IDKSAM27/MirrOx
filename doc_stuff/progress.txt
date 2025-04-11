@@ -11,5 +11,9 @@ Used command: adb shell CLASSPATH=/data/local/tmp/server.jar app_process / Mirro
 Phase 2: Communication via ADB 
 Setted up communication over ADB exec-out or forward
 
-Used adb exec-out to get
+Used adb exec-out to get screen frames
+
+## PROBLEMS:
+
+Aborted : is the message recieved upon exec-out
 
