@@ -15,5 +15,4 @@ Used adb exec-out to get screen frames
 
 ## PROBLEMS:
 
-Aborted : is the message recieved upon exec-out
-
+No problems yet!
