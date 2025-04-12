@@ -98,7 +98,7 @@ Your .jar built with Java may not be dexified for Android. But app_process needs
         jar cf mirrox_server.dex.jar classes.dex
 
     adb push mirrox_server.dex.jar /data/local/tmp/
-    adb shell CLASSPATH=/data/local/tmp/mirrox_server.dex.jar app_process / com.mirrox.server.MirroxServer
+    adb shell CLASSPATH=/data/local/tmp/mirrox_server.dex.jar app_process / com.mirrox.server.StartMirrox
 
 
 d8 is available in Android SDK build-tools. Example path:
