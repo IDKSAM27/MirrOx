@@ -1,20 +1,24 @@
 package com.mirrox.server;
 
-import android.util.Log;
+import android.app.Application;
+import android.os.Handler;
 
-public class MirroxServer {
-    public static void main(String[] args) {
-        try {
-            Log.i("MirroxServer", "Hello from Mirrox Server!");
-            System.out.println("MirrOx server started");
+public class MirroxServer extends Application {
 
-            // Simulate long-running server
-            Thread.sleep(10000);
+    @Override
+    public void onCreate() {
+        super.onCreate();
 
-            System.out.println("MirrOx server exiting");
-        } catch (Exception e) {
-            System.err.println("MirrOx Server Error: " + e.getMessage());
-            e.printStackTrace();
-        }
+        System.out.println("✅ MirrOx Server Started inside Android Application");
+
+        // Run your server logic here (on another thread if needed)
+        new Handler().post(() -> {
+            try {
+                // Your screen encoder / MediaProjection logic here
+                System.out.println("👀 Running MirrOx Server logic...");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 }
