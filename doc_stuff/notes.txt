@@ -70,6 +70,7 @@ adb exec-out app_process / com.mirrox.server.MainActivity > frame.h264
 
 adb shell CLASSPATH=/data/local/tmp/mirrox_server-1.0.jar app_process / com.mirrox.server.MirroxServer
 
+adb logcat -c
 adb logcat | grep mirrox
 
 (run adb logcat > log.txt in bash then run the app_process)
