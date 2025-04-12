@@ -83,3 +83,16 @@ app_process is meant for running headless Java classes.
 MainActivity extends android.app.Activity, which requires a full Android app context and must be launched by the system.
 
 Since we’re launching a .jar, there’s no AndroidManifest, no APK, and no system context, so the Activity fails to launch and causes Aborted.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+Your .jar built with Java may not be dexified for Android. But app_process needs DEX format classes.
+# Convert to DEX format (Android build tools required)
+    d8 --output=mirrox_dex.jar build/libs/mirrox_server-1.0.jar
+
+    adb push mirrox_dex.jar /data/local/tmp/
+    adb shell CLASSPATH=/data/local/tmp/mirrox_dex.jar app_process / com.mirrox.server.MirroxServer
+
+d8 is available in Android SDK build-tools. Example path:
+
+~/Android/Sdk/build-tools/30.0.3/d8
