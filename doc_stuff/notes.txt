@@ -88,10 +88,17 @@ Since we’re launching a .jar, there’s no AndroidManifest, no APK, and no sys
 
 Your .jar built with Java may not be dexified for Android. But app_process needs DEX format classes.
 # Convert to DEX format (Android build tools required)
-    d8 --output=mirrox_dex.jar build/libs/mirrox_server-1.0.jar
 
-    adb push mirrox_dex.jar /data/local/tmp/
-    adb shell CLASSPATH=/data/local/tmp/mirrox_dex.jar app_process / com.mirrox.server.MirroxServer
+    "C:\Users\Sampreet\AppData\Local\Android\Sdk\build-tools\35.0.0" --output=build/dex build/libs/mirrox_server-1.0.jar
+    This will produce a classes.dex file inside build/dex/
+
+    Package the dex into a new JAR
+        cd build/dex
+        jar cf mirrox_server.dex.jar classes.dex
+
+    adb push mirrox_server.dex.jar /data/local/tmp/
+    adb shell CLASSPATH=/data/local/tmp/mirrox_server.dex.jar app_process / com.mirrox.server.MirroxServer
+
 
 d8 is available in Android SDK build-tools. Example path:
 
