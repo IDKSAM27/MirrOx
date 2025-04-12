@@ -70,6 +70,7 @@ adb exec-out app_process / com.mirrox.server.MainActivity > frame.h264
 
 adb shell CLASSPATH=/data/local/tmp/mirrox_server-1.0.jar app_process / com.mirrox.server.MirroxServer
 
+adb logcat -c
 adb logcat | grep mirrox
 
 (run adb logcat > log.txt in bash then run the app_process)
@@ -82,3 +83,26 @@ app_process is meant for running headless Java classes.
 MainActivity extends android.app.Activity, which requires a full Android app context and must be launched by the system.
 
 Since we’re launching a .jar, there’s no AndroidManifest, no APK, and no system context, so the Activity fails to launch and causes Aborted.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+The .jar built with Java may not be dexified for Android. But app_process needs DEX format classes.
+# Convert to DEX format (Android build tools required)
+
+    "C:\Users\Sampreet\AppData\Local\Android\Sdk\build-tools\35.0.0\d8.bat" --output=build/dex build/libs/mirrox_server-1.0.jar
+
+    This will produce a classes.dex file inside build/dex/
+
+    Package the dex into a new JAR
+        cd build/dex
+        jar cf mirrox_server.dex.jar classes.dex
+
+    adb push mirrox_server.dex.jar /data/local/tmp/
+    adb shell CLASSPATH=/data/local/tmp/mirrox_server.dex.jar app_process / com.mirrox.server.StartMirrox
+
+"""
+$ adb logcat | grep mirrox
+04-12 13:32:36.370 32613 32613 W ziparchive: Unable to open '/data/local/tmp/mirrox_server.dex.dm': No such file or directory
+04-12 13:32:36.415 32613 32613 D AndroidRuntime: Calling main entry com.mirrox.server.StartMirrox
+"""
+    Unable open warning is ok, and it is not needed in out case, so don't worry

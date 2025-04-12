@@ -5,7 +5,7 @@ Used adb push to send the .jar to /data/local/tmp/
 
 Started the server via adb shell
 
-Used command: adb shell CLASSPATH=/data/local/tmp/server.jar app_process / MirrorServer, for native binary i.e., .jar
+Used command: adb shell CLASSPATH=/data/local/tmp/server.jar app_process / com.mirrox.server.MirrorServer , for native binary i.e., .jar
 
 
 Phase 2: Communication via ADB 
