@@ -6,6 +6,7 @@ import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.IBinder;
 // import android.os.ServiceManager;
+import android.os.Looper;
 
 import java.lang.reflect.Method;
 
@@ -38,13 +39,18 @@ public class StartMirrox {
     }
 
     // Get system context like scrcpy
-    private static Context getSystemContext() throws Exception {
-        Class<?> activityThread = Class.forName("android.app.ActivityThread");
-        Method systemMain = activityThread.getMethod("systemMain");
-        Object activityThreadInstance = systemMain.invoke(null);
-        Method getSystemContext = activityThread.getMethod("getSystemContext");
-        return (Context) getSystemContext.invoke(activityThreadInstance);
-    }
+private static Context getSystemContext() throws Exception {
+    // Prepare the main looper before systemMain to avoid Handler crash
+    Looper.prepareMainLooper();
+
+    Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
+    Method method = activityThreadClass.getMethod("systemMain");
+    Object activityThread = method.invoke(null);
+
+    Method getSystemContext = activityThreadClass.getMethod("getSystemContext");
+    return (Context) getSystemContext.invoke(activityThread);
+}
+
 
     // Get MediaProjection without UI — requires shell-granted permission
     private static MediaProjection getMediaProjection(Context context) {
