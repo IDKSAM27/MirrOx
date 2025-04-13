@@ -101,6 +101,7 @@ The .jar built with Java may not be dexified for Android. But app_process needs 
     adb push mirrox_server.dex.jar /data/local/tmp/
     adb shell CLASSPATH=/data/local/tmp/mirrox_server.dex.jar app_process / com.mirrox.server.StartMirrox
 
+
 """
 $ adb logcat | grep mirrox
 04-12 13:32:36.370 32613 32613 W ziparchive: Unable to open '/data/local/tmp/mirrox_server.dex.dm': No such file or directory
