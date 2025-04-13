@@ -89,6 +89,7 @@ Since we’re launching a .jar, there’s no AndroidManifest, no APK, and no sys
 The .jar built with Java may not be dexified for Android. But app_process needs DEX format classes.
 # Convert to DEX format (Android build tools required)
 
+    mkdir build\dex
     "C:\Users\Sampreet\AppData\Local\Android\Sdk\build-tools\35.0.0\d8.bat" --output=build/dex build/libs/mirrox_server-1.0.jar
 
     This will produce a classes.dex file inside build/dex/
@@ -100,9 +101,12 @@ The .jar built with Java may not be dexified for Android. But app_process needs 
     adb push mirrox_server.dex.jar /data/local/tmp/
     adb shell CLASSPATH=/data/local/tmp/mirrox_server.dex.jar app_process / com.mirrox.server.StartMirrox
 
+
 """
 $ adb logcat | grep mirrox
 04-12 13:32:36.370 32613 32613 W ziparchive: Unable to open '/data/local/tmp/mirrox_server.dex.dm': No such file or directory
 04-12 13:32:36.415 32613 32613 D AndroidRuntime: Calling main entry com.mirrox.server.StartMirrox
 """
     Unable open warning is ok, and it is not needed in out case, so don't worry
+
+
