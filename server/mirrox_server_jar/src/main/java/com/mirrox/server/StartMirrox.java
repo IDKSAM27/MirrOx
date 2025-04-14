@@ -3,7 +3,6 @@ package com.mirrox.server;
 import android.content.Context;
 // import android.hardware.display.DisplayManager;
 import android.media.projection.MediaProjection;
-import android.media.projection.MediaProjectionManager;
 import android.os.IBinder;
 // import android.os.ServiceManager;
 import android.os.Looper;
@@ -19,7 +18,7 @@ public class StartMirrox {
         System.out.println("✅ MirrOx Server Started using main()");
         try {
             Context context = getSystemContext();
-            MediaProjection mediaProjection = getMediaProjection(context);
+            MediaProjection mediaProjection = getMediaProjection();
             if (mediaProjection == null) {
                 System.err.println("❌ Failed to get MediaProjection");
                 return;
@@ -53,25 +52,48 @@ private static Context getSystemContext() throws Exception {
 
 
     // Get MediaProjection without UI — requires shell-granted permission
-    private static MediaProjection getMediaProjection(Context context) {
-        MediaProjectionManager projectionManager =
-                (MediaProjectionManager) context.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+    private static MediaProjection getMediaProjection() {
         try {
-            // Reflectively call android.os.ServiceManager.getService("media_projection")
-            IBinder projectionToken = (IBinder) Class.forName("android.os.ServiceManager")      // ServiceManager is actually is part of the internal ANDROID SDK and not accessible via android.jar.
-                    .getMethod("getService", String.class)                         // Instead of importing android.os.ServiceManager directly, we can use reflection to access it
+            // Get the media_projection service binder
+            IBinder projectionService = (IBinder) Class.forName("android.os.ServiceManager")
+                    .getMethod("getService", String.class)
                     .invoke(null, "media_projection");
     
-            if (projectionToken != null) {
-                Method getMediaProjection =
-                        projectionManager.getClass().getDeclaredMethod("getMediaProjection", int.class, IBinder.class);
-                getMediaProjection.setAccessible(true);
-                return (MediaProjection) getMediaProjection.invoke(projectionManager, 0, projectionToken);
+            if (projectionService == null) {
+                System.err.println("❌ media_projection service not available");
+                return null;
             }
+    
+            // Get the stub class: IMediaProjectionManager.Stub
+            Class<?> stubClass = Class.forName("android.media.projection.IMediaProjectionManager$Stub");
+            Object iMediaProjectionManager = stubClass
+                    .getMethod("asInterface", IBinder.class)
+                    .invoke(null, projectionService);
+    
+            // Create a fake package name and UID (shell UID = 2000)
+            String packageName = "com.mirrox.shell";
+            int uid = 2000; // shell UID
+            int displayId = 0; // virtual display
+    
+            // Call createProjection(int uid, String packageName, int type, boolean permanentGrant)
+            Method createProjection = iMediaProjectionManager.getClass()
+                    .getMethod("createProjection", int.class, String.class, int.class, boolean.class);
+    
+            Object iMediaProjection = createProjection.invoke(iMediaProjectionManager, uid, packageName, 0, true);
+    
+            // Now wrap it with MediaProjection
+            Class<?> mediaProjectionClass = Class.forName("android.media.projection.MediaProjection");
+            Method getInstance = mediaProjectionClass.getDeclaredMethod("getInstance", int.class, Object.class);
+            getInstance.setAccessible(true);
+    
+            return (MediaProjection) getInstance.invoke(null, 0, iMediaProjection);
+    
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
     }
+    
+    
     
 }
