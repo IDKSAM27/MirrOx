@@ -111,3 +111,11 @@ $ adb logcat | grep mirrox
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+14/04/2025
+
+MediaProjection requires rooted android device, hence the plan has changed:
+
+    I must use a fake package name like "com.mirrox.shell" — it doesn’t need to be installed.
+    UID 2000 is the shell UID, which has permission when launched via adb shell.
