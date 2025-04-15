@@ -129,3 +129,26 @@ Go Even Lower — Use IMediaProjection Directly
 Since the public MediaProjection constructor is gone, scrcpy doesn’t use it either. Instead, it works directly with the IMediaProjection interface through hidden JNI/NDK calls.
 
 But for your Java-only .jar setup, you can’t directly use IMediaProjection for screen capture unless you fully replace the MediaProjection Java object.
+
+With JNI, we can directly call IMediaProjectionManager.createProjection() using raw Binder transactions from native code, just like scrcpy does.
+
+
+✅ Step 1: Native JNI Library (libmirrox.so)
+    We’ll write a small C/C++ file that:
+
+    Gets the IMediaProjectionManager service.
+
+    Calls .createProjection() with shell UID.
+
+    Returns a valid IMediaProjection binder to Java.
+
+✅ Step 2: Java-to-Native Bridge
+    In your StartMirrox.java, we’ll call a native method like:
+
+java:
+    private static native IBinder nCreateMediaProjection();
+
+Then use that binder with the hidden MediaProjectionManager.getMediaProjection() method via reflection.
+
+✅ Step 3: Link the .so Library
+    Use System.loadLibrary("mirrox") in Java to load the native .so at runtime (from /data/local/tmp/ or pre-pushed).
