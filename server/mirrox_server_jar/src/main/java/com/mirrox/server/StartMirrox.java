@@ -2,12 +2,12 @@ package com.mirrox.server;
 
 import android.content.Context;
 import android.media.projection.MediaProjection;
-import android.media.projection.MediaProjectionManager;
 import android.os.IBinder;
 import android.os.IInterface;
 import android.os.Looper;
 import android.os.Parcel;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 
 public class StartMirrox {
@@ -28,7 +28,6 @@ public class StartMirrox {
             ScreenEncoder encoder = new ScreenEncoder(mediaProjection);
             encoder.start(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-            // Keep the server alive
             while (true) {
                 Thread.sleep(1000);
             }
@@ -38,7 +37,6 @@ public class StartMirrox {
         }
     }
 
-    // Get system context like scrcpy
     private static Context getSystemContext() throws Exception {
         Looper.prepareMainLooper();
 
@@ -50,7 +48,6 @@ public class StartMirrox {
         return (Context) getSystemContext.invoke(activityThread);
     }
 
-    // Scrcpy-style raw Binder IPC to request MediaProjection
     private static MediaProjection getMediaProjectionFromBinder(Context context) {
         try {
             IBinder binder = (IBinder) Class.forName("android.os.ServiceManager")
@@ -65,26 +62,23 @@ public class StartMirrox {
             Parcel data = Parcel.obtain();
             Parcel reply = Parcel.obtain();
 
-            // Must match the AIDL interface token
             data.writeInterfaceToken("android.media.projection.IMediaProjectionManager");
-            data.writeInt(2000); // shell UID
-            data.writeString("com.mirrox.server"); // your shell-granted package name
+            data.writeInt(2000); // UID for shell
+            data.writeString("com.mirrox.server");
 
             binder.transact(1, data, reply, 0);
-
             reply.readException();
             IBinder projectionBinder = reply.readStrongBinder();
 
-            // Wrap the returned binder in the MediaProjection system service
-            MediaProjectionManager mpm = (MediaProjectionManager) context.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-            Method asInterface = Class.forName("android.media.projection.IMediaProjection$Stub")
-                    .getMethod("asInterface", IBinder.class);
-            IInterface projection = (IInterface) asInterface.invoke(null, projectionBinder);
+            // Bind to IMediaProjection
+            Class<?> stubClass = Class.forName("android.media.projection.IMediaProjection$Stub");
+            Method asInterface = stubClass.getMethod("asInterface", IBinder.class);
+            IInterface iMediaProjection = (IInterface) asInterface.invoke(null, projectionBinder);
 
-            Method getMediaProjection = mpm.getClass().getDeclaredMethod("getMediaProjection", int.class, IInterface.class);
-            getMediaProjection.setAccessible(true);
-
-            return (MediaProjection) getMediaProjection.invoke(mpm, 0, projection);
+            // Use hidden constructor of MediaProjection
+            Constructor<MediaProjection> constructor = MediaProjection.class.getDeclaredConstructor(int.class, IInterface.class);
+            constructor.setAccessible(true);
+            return constructor.newInstance(0, iMediaProjection);
 
         } catch (Exception e) {
             e.printStackTrace();
