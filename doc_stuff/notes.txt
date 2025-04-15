@@ -124,3 +124,8 @@ MediaProjection requires rooted android device, hence the plan has changed:
 
 Direct MediaProjection is not working, I'll just smartly put in an API something like scrcpy does.
 i.e., skip MediaProjectionManager.getMediaProjection() altogether and directly return an IMediaProjection instance wrapped in a custom MediaProjection using a hidden constructor.
+
+Go Even Lower — Use IMediaProjection Directly
+Since the public MediaProjection constructor is gone, scrcpy doesn’t use it either. Instead, it works directly with the IMediaProjection interface through hidden JNI/NDK calls.
+
+But for your Java-only .jar setup, you can’t directly use IMediaProjection for screen capture unless you fully replace the MediaProjection Java object.
