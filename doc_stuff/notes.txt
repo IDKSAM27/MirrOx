@@ -152,3 +152,9 @@ Then use that binder with the hidden MediaProjectionManager.getMediaProjection()
 
 ✅ Step 3: Link the .so Library
     Use System.loadLibrary("mirrox") in Java to load the native .so at runtime (from /data/local/tmp/ or pre-pushed).
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+16/04/2025
+
+NDK is necessary for .so cultivation.
