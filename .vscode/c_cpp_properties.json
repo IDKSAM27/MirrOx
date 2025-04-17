@@ -6,7 +6,9 @@
           "${workspaceFolder}/**",
           "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr",
           "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/sources/android/native_app_glue",
-          "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include"
+          "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include",
+          "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/aarch64-linux-android"
+
         ],
         "defines": [],
         "compilerPath": "C:/msys64/mingw64/bin/gcc.exe",
