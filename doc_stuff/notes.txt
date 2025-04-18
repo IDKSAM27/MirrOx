@@ -158,3 +158,12 @@ Then use that binder with the hidden MediaProjectionManager.getMediaProjection()
 16/04/2025
 
 NDK is necessary for .so cultivation.
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+18/04/2025
+
+To build the .so native file: 
+    C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/ndk-build
+
+---------------------------------------------------------------------------------------------------------------------------------
