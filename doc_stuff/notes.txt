@@ -133,7 +133,8 @@ But for your Java-only .jar setup, you can’t directly use IMediaProjection for
 With JNI, we can directly call IMediaProjectionManager.createProjection() using raw Binder transactions from native code, just like scrcpy does.
 
 
-✅ Step 1: Native JNI Library (libmirrox.so)
+
+Step 1: Native JNI Library (libmirrox.so)
     We’ll write a small C/C++ file that:
 
     Gets the IMediaProjectionManager service.
@@ -142,7 +143,7 @@ With JNI, we can directly call IMediaProjectionManager.createProjection() using 
 
     Returns a valid IMediaProjection binder to Java.
 
-✅ Step 2: Java-to-Native Bridge
+Step 2: Java-to-Native Bridge
     In your StartMirrox.java, we’ll call a native method like:
 
 java:
@@ -150,7 +151,7 @@ java:
 
 Then use that binder with the hidden MediaProjectionManager.getMediaProjection() method via reflection.
 
-✅ Step 3: Link the .so Library
+Step 3: Link the .so Library
     Use System.loadLibrary("mirrox") in Java to load the native .so at runtime (from /data/local/tmp/ or pre-pushed).
 
 ---------------------------------------------------------------------------------------------------------------------------------
@@ -158,3 +159,20 @@ Then use that binder with the hidden MediaProjectionManager.getMediaProjection()
 16/04/2025
 
 NDK is necessary for .so cultivation.
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+18/04/2025
+
+To build the .so native file: 
+    C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/ndk-build
+
+
+
+adb push build/dex/mirrox_server.dex.jar /data/local/tmp/
+adb push libs/arm64-v8a/libmirroxjni.so /data/local/tmp/mirrox_libs/libmirroxjni.so
+adb shell "CLASSPATH=/data/local/tmp/mirrox_server.dex.jar app_process / com.mirrox.server.StartMirrox"
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------
