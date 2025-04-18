@@ -9,5 +9,5 @@ JNIEXPORT jobject JNICALL
 Java_com_mirrox_server_StartMirrox_startMediaProjection(JNIEnv *env, jclass clazz) {
     // TODO: implement raw binder transaction like scrcpy
     printf("Native function called!\n");
-    return 42;
+    return 0;
 }

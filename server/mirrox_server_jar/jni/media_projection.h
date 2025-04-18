@@ -10,15 +10,20 @@
 // #endif
 
 
-/* DO NOT include in build if you're already compiling the C file directly */
+#ifndef MIRROX_MEDIA_PROJECTION_H
+#define MIRROX_MEDIA_PROJECTION_H
 
-#ifndef _Included_com_mirrox_server_StartMirrox
-#define _Included_com_mirrox_server_StartMirrox
+#include <jni.h>  // ✅ required for JNIEXPORT and friends
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-JNIEXPORT jint JNICALL Java_com_mirrox_server_StartMirrox_startMediaProjection(JNIEnv *, jclass);
+
+JNIEXPORT jint JNICALL
+java_com_mirrox_server_StartMirrox_startMediaProjection(JNIEnv *env, jobject clazz);
+
 #ifdef __cplusplus
 }
 #endif
-#endif
+
+#endif // MIRROX_MEDIA_PROJECTION_H
