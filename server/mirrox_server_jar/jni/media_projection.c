@@ -3,6 +3,12 @@
 #include <stdio.h>
 
 #include <jni.h>
+// #include <binder/IServiceManager.h>
+// #include <binder/Parcel.h>
+// #include <utils/String16.h>
+// #include <utils/StrongPointer.h>
+
+// using namespace android;
 
 // Signature: Java_[package]_[ClassName]_methodname             , this is the only way to name the below function name
 JNIEXPORT jobject JNICALL
