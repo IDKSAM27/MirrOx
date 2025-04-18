@@ -1,0 +1,77 @@
+Binder is Android's low-level, high-performance IPC (Inter-Process Communication) mechanism. 
+It's what lets one process talk to another—like a client app talking to system services.
+
+In our case:
+
+    We (the shell app) talk to the system's media_projection service.
+    We do this by creating a Parcel, writing a method call into it, and sending it using transact().
+
+
+## Key Concepts We Used
+
+1. Service Manager (defaultServiceManager())
+
+    sp<IBinder> service = defaultServiceManager()->getService(String16("media_projection"));
+
+Think of it as a directory of system services.
+We ask the Service Manager: "Give me the media_projection service".
+It returns an IBinder that represents this remote object.
+
+
+2. Parcel
+
+    A Parcel is like a serialized data envelope for sending method arguments.
+
+    Parcel data, reply;
+
+data: arguments you're sending
+reply: response you'll receive
+
+
+3. Interface Token
+
+    data.writeInterfaceToken(String16("android.media.projection.IMediaProjectionManager"));
+
+Android uses this to validate the call is targeting the right interface.
+If you skip this or it’s wrong → SecurityException.
+
+
+4. Arguments
+
+    data.writeInt32(uid);                    // shell user id (2000)
+    data.writeString16(packageName);         // name of the calling package
+    data.writeInt32(type);                   // projection type (1 = screen capture)
+    data.writeInt32(permanentGrant ? 1 : 0); // whether permission is permanent
+
+These map exactly to the parameters in:
+
+    IMediaProjection createProjection(int uid, String packageName, int type, boolean permanentGrant)
+
+
+5. Transaction
+
+    status_t status = service->transact(5, data, &reply);
+
+transact() sends the request to the service.
+5 is the transaction code (hardcoded in AOSP; scrcpy also uses this).
+If it works, the service replies in reply.
+
+
+6. Getting the Result
+
+    reply.readExceptionCode();
+    sp<IBinder> projectionToken = reply.readStrongBinder();
+
+We read any exceptions that might’ve occurred.
+If all is good, we get back the MediaProjection token as a Binder object.
+
+
+## Summary: What You're Doing
+
+Step	                            Description
+-----------------------------------------------------------------------------------
+defaultServiceManager()	            Get a reference to the media_projection service
+Parcel	                            Serialize the method call
+transact(5)	                        Call createProjection() method
+readStrongBinder()	                Receive the MediaProjection token
+NewLocalRef()	                    Return it back to Java
