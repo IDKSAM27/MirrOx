@@ -8,6 +8,15 @@
 // #include <utils/String16.h>
 // #include <utils/StrongPointer.h>
 
+binder/IServiceManager.h
+
+binder/IBinder.h
+
+utils/RefBase.h
+
+utils/String16.h
+
+
 // using namespace android;
 
 // Signature: Java_[package]_[ClassName]_methodname             , this is the only way to name the below function name
