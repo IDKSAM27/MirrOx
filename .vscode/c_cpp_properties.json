@@ -7,8 +7,15 @@
           "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr",
           "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/sources/android/native_app_glue",
           "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include",
-          "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/aarch64-linux-android"
-
+          "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/aarch64-linux-android",
+          "D:/Projects/MirrOx/AOSP_HEADERS/platform_frameworks_base/core/java",
+          "D:/Projects/MirrOx/AOSP_HEADERS/platform_frameworks_base/media/java",
+          "D:/Projects/MirrOx/AOSP_headers/platform_frameworks_base/media/java/android/media/projection",
+          "D:/Projects/MirrOx/AOSP_HEADERS/platform_system_core/include",
+          "D:/Projects/MirrOx/AOSP_HEADERS/platform_system_core/libutils/include",
+          "D:/Projects/MirrOx/AOSP_HEADERS/platform_system_core/libcutils/include",
+          "D:/Projects/MirrOx/AOSP_headers/frameworks_native/libs/binder/include/binder",
+          "C:/Users/Sampreet/AppData/Local/Android/Sdk/ndk/29.0.13113456/sources/android/native_app_glue"
         ],
         "defines": [],
         "compilerPath": "C:/msys64/mingw64/bin/gcc.exe",
