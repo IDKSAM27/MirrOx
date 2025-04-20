@@ -1,10 +1,14 @@
 #include <jni.h>
-#include <stdio.h>
-#include <binder/IServiceManager.h>
-#include <binder/Parcel.h>
-#include <utils/String16.h>
-#include <utils/StrongPointer.h>
 #include <android/log.h>
+
+#include <binder/IServiceManager.h>
+#include <binder/IBinder.h>
+#include <binder/Parcel.h>
+#include <utils/StrongPointer.h>
+#include <utils/String16.h>
+#include <utils/Errors.h>
+#include <utils/Log.h>
+
 
 #define TAG "MirrOxJNI"
 #define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
