@@ -9,8 +9,7 @@ JNIEXPORT jobject JNICALL
 Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative(JNIEnv *env, jclass clazz) {
     // You can put native MediaProjection IPC or logging logic here
     printf("✅ Native startMediaProjection() called!\n");
-    __android_log_print(ANDROID_LOG_INFO, "Mirrox", "✅ Native getMediaProjectionTokenNative() called!");
-    
-    // TODO: Replace this with real binder IPC logic
-    return NULL; // Just to confirm flow works
+
+    jobject token = create_media_projection(env); // You will define this
+    return token;   
 }
