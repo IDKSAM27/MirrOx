@@ -202,3 +202,12 @@ Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative() : in media_pr
 Linker error because I'm using __android_log_print() (from android/log.h) 
 but didn't link against the required library (liblog.so): 
     update Android.mk to link the log library.
+
+
+JNI BRIDGE IS WORKING!!!
+
+
+
+#Implement Binder IPC to get the real MediaProjection token
+    This is where I replicate what scrcpy does natively to bypass UI permission dialogs.
+    I'll write real Binder-level IPC in media_projection.c to talk to IMediaProjectionManager and retrieve a valid IBinder token.

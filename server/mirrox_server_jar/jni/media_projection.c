@@ -1,4 +1,6 @@
 #include "media_projection.h"
+#include "binder_utils.h"
+
 #include <stdio.h>
 #include <jni.h>
 #include <android/log.h>
