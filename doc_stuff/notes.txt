@@ -200,4 +200,5 @@ Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative() : in media_pr
 
 
 Linker error because I'm using __android_log_print() (from android/log.h) 
-but didn't link against the required library (liblog.so).
+but didn't link against the required library (liblog.so): 
+    update Android.mk to link the log library.
