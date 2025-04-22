@@ -1,5 +1,7 @@
 package com.mirrox.server;
 
+import android.os.IBinder;
+
 public class StartMirrox {
 
     // Load the native .so library
@@ -8,13 +10,13 @@ public class StartMirrox {
     }
 
     // Declare the native method
-    public static native int startMediaProjection();
+    public static native IBinder getMediaProjectionTokenNative();
 
     public static void main(String[] args) {
         System.out.println("✅ MirrOx Server Started using main()");
 
         // Call the native method and print its result
-        int result = startMediaProjection();
-        System.out.println("📣 JNI result: " + result);
+        IBinder projectionToken = getMediaProjectionTokenNative();
+        System.out.println("📣 JNI result: " + projectionToken);
     }
 }
