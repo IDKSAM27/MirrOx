@@ -3,7 +3,7 @@
 #include <jni.h>
 #include <android/log.h>
 
-JNIEXPORT jint JNICALL
+JNIEXPORT jobject JNICALL
 Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative(JNIEnv *env, jclass clazz) {
     // You can put native MediaProjection IPC or logging logic here
     printf("✅ Native startMediaProjection() called!\n");
