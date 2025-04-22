@@ -187,3 +187,10 @@ For Windows:
 For Linux:
     tree -L 3 platform_frameworks_base > base_structure.txt
     tree -L 3 platform_system_core > core_structure.txt
+
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+22/04/2025
+
+Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative() : in media_projection.c
