@@ -9,9 +9,6 @@
 #include <sys/ioctl.h>
 #include <string.h>
 
-#ifdef open
-#undef open
-#endif
 
 #include "include/binder.h"
 #include "include/binderfs.h"
