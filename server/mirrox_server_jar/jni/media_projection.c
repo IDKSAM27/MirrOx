@@ -15,7 +15,7 @@ Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative(JNIEnv *env, jc
     printf("🔧 create_media_projection() called (WIP)\n");
 
     // You will eventually perform the binder IPC transaction here to get the token
-    //close(binder_fd);
+    close(binder_fd);
 
     return NULL;
 }
