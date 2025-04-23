@@ -1,17 +1,29 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <string.h>
+
+#ifdef open
+#undef open
+#endif
+
 #include "include/binder.h"
 #include "include/binderfs.h"
 #include "include/ioctl.h"
 #include "include/types.h"
+#include "include/binder_version.h"
 #include "binder_utils.h"
+#include <asm/unistd_64.h>
+
 
 int open_binder() {
-    int fd = open(BINDER_DEVICE, O_RDWR | O_CLOEXEC);
+    int fd = syscall(__NR_openat, AT_FDCWD, BINDER_DEVICE, O_RDWR | O_CLOEXEC);
     if (fd < 0) {
         perror("open binder failed");
         return -1;
