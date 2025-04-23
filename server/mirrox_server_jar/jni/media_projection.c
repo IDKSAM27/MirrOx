@@ -1,15 +1,21 @@
-#include "media_projection.h"
-#include "binder_utils.h"
-
-#include <stdio.h>
 #include <jni.h>
-#include <android/log.h>
+#include <stdio.h>
+#include "binder_utils.h"
 
 JNIEXPORT jobject JNICALL
 Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative(JNIEnv *env, jclass clazz) {
-    // You can put native MediaProjection IPC or logging logic here
     printf("✅ Native startMediaProjection() called!\n");
 
-    jobject token = create_media_projection(env); // You will define this
-    return token;   
+    int binder_fd = open_binder();
+    if (binder_fd < 0) {
+        printf("❌ Failed to open binder device\n");
+        return NULL;
+    }
+
+    printf("🔧 create_media_projection() called (WIP)\n");
+
+    // You will eventually perform the binder IPC transaction here to get the token
+    close(binder_fd);
+
+    return NULL;
 }
