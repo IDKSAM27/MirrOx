@@ -219,3 +219,5 @@ JNI BRIDGE IS WORKING!!!
 
 I'll copy only the required headers into jni/include/
 close() in media_projection.c was an implicit declaration.
+
+Something funny happened today, found out if there is an emulator like 'bluestack' on the local pc, the adb daemon recognizes it as an connected emulator.
