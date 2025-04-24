@@ -8,5 +8,6 @@
 struct binder_version {
     int32_t protocol_version;
 };
+int send_create_projection_transaction(int binder_fd, uint32_t handle);
 
 #endif // MIRROX_BINDER_VERSION_H
