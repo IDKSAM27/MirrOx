@@ -66,12 +66,14 @@ We read any exceptions that might’ve occurred.
 If all is good, we get back the MediaProjection token as a Binder object.
 
 
-## Summary: What You're Doing
 
-Step	                            Description
------------------------------------------------------------------------------------
-defaultServiceManager()	            Get a reference to the media_projection service
-Parcel	                            Serialize the method call
-transact(5)	                        Call createProjection() method
-readStrongBinder()	                Receive the MediaProjection token
-NewLocalRef()	                    Return it back to Java
+## Binder Parcel Layout (written into the buffer)
+
+--------------------------------------------------------------------------------------------------------
+Offset	    Value	                                                                Size
+--------------------------------------------------------------------------------------------------------
+0x00	    interfaceToken ("android.media.projection.IMediaProjectionManager")	    variable (UTF-16)
+?	        int uid (2000 for shell)	                                            4 bytes
+?	        String16 packageName ("com.mirrox.server")	                            variable
+?	        int flags (e.g., 1 for screen capture)	                                4 bytes
+--------------------------------------------------------------------------------------------------------

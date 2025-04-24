@@ -218,3 +218,10 @@ JNI BRIDGE IS WORKING!!!
 23/04/2025
 
 I'll copy only the required headers into jni/include/
+close() in media_projection.c was an implicit declaration.
+
+Something funny happened today, found out if there is an emulator like 'bluestack' on the local pc, the adb daemon recognizes it as an connected emulator.
+
+Binder connection established and JNI plumbing done.
+Probably the hardest part is yet to come, and guess what it has arrived:
+    MANUALLY CRAFTING THE binder_transaction_data TO INVOKE IMediaProjectionManager::createProjection() OVER BINDER.

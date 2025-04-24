@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "binder_utils.h"
 
 JNIEXPORT jobject JNICALL
