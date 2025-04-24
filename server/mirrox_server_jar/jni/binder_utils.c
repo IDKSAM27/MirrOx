@@ -16,11 +16,13 @@
 #include "include/types.h"
 #include "include/binder_version.h"
 #include "binder_utils.h"
-#include <asm/unistd_64.h>
+// #include <asm/unistd_64.h> // not compatible for ARM!
+#include <sys/syscall.h>
 
 
 int open_binder() {
-    int fd = syscall(__NR_openat, AT_FDCWD, BINDER_DEVICE, O_RDWR | O_CLOEXEC);
+    int fd = syscall(SYS_openat, AT_FDCWD, BINDER_DEVICE, O_RDWR | O_CLOEXEC);
+
     if (fd < 0) {
         perror("open binder failed");
         return -1;
