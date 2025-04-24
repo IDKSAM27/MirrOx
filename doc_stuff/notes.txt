@@ -218,3 +218,4 @@ JNI BRIDGE IS WORKING!!!
 23/04/2025
 
 I'll copy only the required headers into jni/include/
+close() in media_projection.c was an implicit declaration.
