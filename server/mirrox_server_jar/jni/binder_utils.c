@@ -1,5 +1,7 @@
 #define _GNU_SOURCE
 
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -9,7 +11,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <string.h>
-
+#include <sys/syscall.h>
 
 #include "include/binder.h"
 #include "include/binderfs.h"
@@ -17,9 +19,9 @@
 #include "include/types.h"
 #include "include/binder_version.h"
 #include "binder_utils.h"
-// #include <asm/unistd_64.h> // not compatible for ARM!
-#include <sys/syscall.h>
-#include <sys/types.h>
+
+// Manually define this if not in headers
+#define BC_TRANSACTION 0x5
 
 struct binder_transaction_data {
     binder_uintptr_t target;      // Target binder handle
@@ -31,12 +33,12 @@ struct binder_transaction_data {
         struct {
             binder_uintptr_t ptr;
             binder_size_t length;
-        } buffer;
+        } ptr;
 
         struct {
             uint64_t handle;
             uint64_t cookie;
-        } ptr;
+        } u64;
     } data;
 
     binder_size_t offsets_size;
@@ -44,11 +46,8 @@ struct binder_transaction_data {
     binder_uintptr_t data_buffer;
 };
 
-
-
 int open_binder() {
     int fd = syscall(SYS_openat, AT_FDCWD, BINDER_DEVICE, O_RDWR | O_CLOEXEC);
-
     if (fd < 0) {
         perror("open binder failed");
         return -1;
@@ -89,13 +88,18 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
     data.param4 = 0; // boolean: permanentGrant = false
 
     struct binder_transaction_data txn = {
-        .target.handle = handle,
+        .target = handle,
         .code = 1, // TRANSACTION_createProjection
-        .flags = 0x00, // synchronous call
-        .data.ptr.buffer = (uintptr_t)&data,
-        .data.ptr.offsets = 0,
+        .flags = 0x00,
+        .data = {
+            .ptr = {
+                .ptr = (uintptr_t)&data,
+                .length = sizeof(data),
+            },
+        },
         .data_size = sizeof(data),
         .offsets_size = 0,
+        .data_buffer = 0,
     };
 
     struct {
@@ -114,4 +118,3 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
 
     return 0;
 }
-
