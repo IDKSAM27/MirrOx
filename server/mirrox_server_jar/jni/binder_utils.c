@@ -1,8 +1,9 @@
 #define _GNU_SOURCE
 
-#ifdef write
-#undef write
-#endif
+// Define and undefine just to make there is no other write interfering with the unistd.h's one
+// #ifdef write
+// #undef write
+// #endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +15,7 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <sys/syscall.h>
+ssize_t write(int fd, const void *buf, size_t count);
 
 
 #include "include/binder.h"
@@ -113,7 +115,7 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
     write_buf.cmd = BC_TRANSACTION;
     write_buf.txn = txn;
 
-    ssize_t w = write(binder_fd, &write_buf, sizeof(write_buf));
+    ssize_t w = write(binder_fd, &write_buf, (size_t)sizeof(write_buf));
     if (w < 0) {
         perror("write BC_TRANSACTION failed");
         return -1;
