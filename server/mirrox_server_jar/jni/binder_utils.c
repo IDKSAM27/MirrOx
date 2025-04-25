@@ -15,7 +15,13 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <sys/syscall.h>
+#include <jni.h>
+#include <errno.h>
+
 ssize_t write(int fd, const void *buf, size_t count);
+
+#include <errno.h>
+#include <sys/uio.h>
 
 
 #include "include/binder.h"
@@ -122,4 +128,60 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
     }
 
     return 0;
+}
+
+
+jobject receive_media_projection_reply(int binder_fd, JNIEnv *env) {
+    uint8_t buffer[1024];
+    ssize_t r = read(binder_fd, buffer, sizeof(buffer));
+    if (r < 0) {
+        perror("read BR_REPLY failed");
+        return NULL;
+    }
+
+    struct binder_transaction_data *txn_reply = NULL;
+    size_t pos = 0;
+
+    while (pos + sizeof(uint32_t) < r) {
+        uint32_t cmd = *(uint32_t *)(buffer + pos);
+        pos += sizeof(uint32_t);
+
+        if (cmd == BR_TRANSACTION) {
+            if (pos + sizeof(struct binder_transaction_data) <= r) {
+                txn_reply = (struct binder_transaction_data *)(buffer + pos);
+                break;
+            }
+        }
+
+        // Skip unknown/unsupported binder responses
+        pos += sizeof(struct binder_transaction_data);
+    }
+
+    if (!txn_reply) {
+        fprintf(stderr, "No BR_TRANSACTION in binder reply\n");
+        return NULL;
+    }
+
+    // ⚠️ This is a simplification — we're assuming data.ptr.buffer[0] holds a handle.
+    int32_t binder_handle = ((int32_t *)(uintptr_t)txn_reply->data.ptr.buffer)[0];
+    if (binder_handle == 0) {
+        fprintf(stderr, "Binder handle is null\n");
+        return NULL;
+    }
+
+    // Convert native binder handle to Java IBinder
+    jclass binderClass = (*env)->FindClass(env, "android/os/Binder");
+    if (!binderClass) {
+        fprintf(stderr, "Failed to find android.os.Binder\n");
+        return NULL;
+    }
+
+    jmethodID getBinderFromHandle = (*env)->GetStaticMethodID(env, binderClass, "getBinderFromHandle", "(I)Landroid/os/IBinder;");
+    if (!getBinderFromHandle) {
+        fprintf(stderr, "Failed to find method getBinderFromHandle\n");
+        return NULL;
+    }
+
+    jobject result = (*env)->CallStaticObjectMethod(env, binderClass, getBinderFromHandle, binder_handle);
+    return result;
 }
