@@ -1,10 +1,7 @@
 #define _GNU_SOURCE
 
-#ifdef write
-#undef write
-#endif
+#include <stdio.h>   // <<<<<< Very important!
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -18,12 +15,22 @@
 #include <sys/uio.h>
 #include <jni.h>
 
+// After all includes:
+#ifdef write
+#undef write
+#endif
+
+#ifdef read
+#undef read
+#endif
+
 #include "include/binder.h"
 #include "include/binderfs.h"
 #include "include/ioctl.h"
 #include "include/types.h"
 #include "include/binder_version.h"
 #include "binder_utils.h"
+
 
 // Binder commands
 #define BC_TRANSACTION 0x5
