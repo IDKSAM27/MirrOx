@@ -1,6 +1,8 @@
 #define _GNU_SOURCE
 
-
+#ifdef write
+#undef write
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +14,7 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <sys/syscall.h>
+
 
 #include "include/binder.h"
 #include "include/binderfs.h"
