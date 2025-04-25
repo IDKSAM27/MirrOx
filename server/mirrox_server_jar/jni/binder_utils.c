@@ -1,9 +1,8 @@
 #define _GNU_SOURCE
 
-// Define and undefine just to make there is no other write interfering with the unistd.h's one
-// #ifdef write
-// #undef write
-// #endif
+#ifdef write
+#undef write
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,14 +14,9 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <sys/syscall.h>
-#include <jni.h>
-#include <errno.h>
-
-ssize_t write(int fd, const void *buf, size_t count);
-
 #include <errno.h>
 #include <sys/uio.h>
-
+#include <jni.h>
 
 #include "include/binder.h"
 #include "include/binderfs.h"
@@ -31,30 +25,31 @@ ssize_t write(int fd, const void *buf, size_t count);
 #include "include/binder_version.h"
 #include "binder_utils.h"
 
-// Manually define this if not in headers
+// Binder commands
 #define BC_TRANSACTION 0x5
+#define BR_TRANSACTION 0xC0000000
 
+// Correct binder_transaction_data
 struct binder_transaction_data {
-    binder_uintptr_t target;      // Target binder handle
-    binder_uintptr_t cookie;      // Not used
-    uint32_t code;                // Transaction code (1 = createProjection)
+    union {
+        uint32_t handle;
+        uint64_t ptr;
+    } target;
+
+    binder_uintptr_t cookie;
+    uint32_t code;
     uint32_t flags;
 
     union {
         struct {
-            binder_uintptr_t ptr;
-            binder_size_t length;
+            binder_uintptr_t buffer;
+            binder_uintptr_t offsets;
         } ptr;
-
-        struct {
-            uint64_t handle;
-            uint64_t cookie;
-        } u64;
+        uint8_t buf[8];
     } data;
 
-    binder_size_t offsets_size;
     binder_size_t data_size;
-    binder_uintptr_t data_buffer;
+    binder_size_t offsets_size;
 };
 
 int open_binder() {
@@ -88,29 +83,32 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
 
     memset(&data, 0, sizeof(data));
     data.strict_mode = 0x01000000;
+
     const char *descriptor = "android.media.projection.IMediaProjectionManager";
     data.interface_token_len = strlen(descriptor) + 1;
     strcpy(data.interface_token, descriptor);
+
     data.param1 = getuid(); // calling UID
+
     const char *pkg = "com.mirrox.server";
     data.param2_len = strlen(pkg) + 1;
     strcpy(data.param2, pkg);
+
     data.param3 = 0; // flags
-    data.param4 = 0; // boolean: permanentGrant = false
+    data.param4 = 0; // permanentGrant = false
 
     struct binder_transaction_data txn = {
-        .target = handle,
+        .target.handle = handle,
         .code = 1, // TRANSACTION_createProjection
         .flags = 0x00,
         .data = {
             .ptr = {
-                .ptr = (uintptr_t)&data,
-                .length = sizeof(data),
+                .buffer = (uintptr_t)&data,
+                .offsets = 0,
             },
         },
         .data_size = sizeof(data),
         .offsets_size = 0,
-        .data_buffer = 0,
     };
 
     struct {
@@ -121,7 +119,7 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
     write_buf.cmd = BC_TRANSACTION;
     write_buf.txn = txn;
 
-    ssize_t w = write(binder_fd, &write_buf, (size_t)sizeof(write_buf));
+    ssize_t w = write(binder_fd, &write_buf, sizeof(write_buf));
     if (w < 0) {
         perror("write BC_TRANSACTION failed");
         return -1;
@@ -129,7 +127,6 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
 
     return 0;
 }
-
 
 jobject receive_media_projection_reply(int binder_fd, JNIEnv *env) {
     uint8_t buffer[1024];
@@ -142,12 +139,12 @@ jobject receive_media_projection_reply(int binder_fd, JNIEnv *env) {
     struct binder_transaction_data *txn_reply = NULL;
     size_t pos = 0;
 
-    while (pos + sizeof(uint32_t) < r) {
+    while (pos + sizeof(uint32_t) < (size_t)r) {
         uint32_t cmd = *(uint32_t *)(buffer + pos);
         pos += sizeof(uint32_t);
 
         if (cmd == BR_TRANSACTION) {
-            if (pos + sizeof(struct binder_transaction_data) <= r) {
+            if (pos + sizeof(struct binder_transaction_data) <= (size_t)r) {
                 txn_reply = (struct binder_transaction_data *)(buffer + pos);
                 break;
             }
@@ -162,14 +159,14 @@ jobject receive_media_projection_reply(int binder_fd, JNIEnv *env) {
         return NULL;
     }
 
-    // ⚠️ This is a simplification — we're assuming data.ptr.buffer[0] holds a handle.
-    int32_t binder_handle = ((int32_t *)(uintptr_t)txn_reply->data.ptr.buffer)[0];
+    uintptr_t data_ptr = (uintptr_t)txn_reply->data.ptr.buffer;
+    int32_t binder_handle = *((int32_t *)data_ptr);
+
     if (binder_handle == 0) {
         fprintf(stderr, "Binder handle is null\n");
         return NULL;
     }
 
-    // Convert native binder handle to Java IBinder
     jclass binderClass = (*env)->FindClass(env, "android/os/Binder");
     if (!binderClass) {
         fprintf(stderr, "Failed to find android.os.Binder\n");
