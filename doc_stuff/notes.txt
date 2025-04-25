@@ -225,3 +225,10 @@ Something funny happened today, found out if there is an emulator like 'bluestac
 Binder connection established and JNI plumbing done.
 Probably the hardest part is yet to come, and guess what it has arrived:
     MANUALLY CRAFTING THE binder_transaction_data TO INVOKE IMediaProjectionManager::createProjection() OVER BINDER.
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+24/04/2025
+
+Some major project setup problems noticed.
