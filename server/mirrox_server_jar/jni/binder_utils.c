@@ -1,39 +1,43 @@
-
 #define _GNU_SOURCE
 
 #ifdef write
 #undef write
 #endif
 
-#ifdef read
-#undef read
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <sys/syscall.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/ioctl.h>
+#include <string.h>
+#include <sys/syscall.h>
+#include <jni.h>
 #include <errno.h>
 #include <sys/uio.h>
-#include <jni.h>
 
-// Minimal fake binder headers to compile standalone
-#define BINDER_DEVICE "/dev/binder"
-#define BINDER_CURRENT_PROTOCOL_VERSION 8
-#define BINDER_VERSION _IOWR('b', 9, int)
+#include <android/log.h> // 🛠️ Added for Android logging
 
-typedef uintptr_t binder_uintptr_t;
-typedef uint64_t binder_size_t;
+#include "include/binder.h"
+#include "include/binderfs.h"
+#include "include/ioctl.h"
+#include "include/types.h"
+#include "include/binder_version.h"
+#include "binder_utils.h"
 
+// 🛠️ Define LOGE to easily log errors
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "MirrOxJNI", __VA_ARGS__)
+
+// Define write manually
+ssize_t write(int fd, const void *buf, size_t count);
+
+// Binder constants
 #define BC_TRANSACTION 0x5
 #define BR_TRANSACTION 0xC0000000
 
+// Your binder_transaction_data struct remains the same
 struct binder_transaction_data {
     binder_uintptr_t target;
     binder_uintptr_t cookie;
@@ -45,6 +49,7 @@ struct binder_transaction_data {
             binder_uintptr_t ptr;
             binder_size_t length;
         } ptr;
+
         struct {
             uint64_t handle;
             uint64_t cookie;
@@ -56,24 +61,16 @@ struct binder_transaction_data {
     binder_uintptr_t data_buffer;
 };
 
-ssize_t safe_write(int fd, const void *buf, size_t count) {
-    return syscall(SYS_write, fd, buf, count);
-}
-
-ssize_t safe_read(int fd, void *buf, size_t count) {
-    return syscall(SYS_read, fd, buf, count);
-}
-
 int open_binder() {
     int fd = syscall(SYS_openat, AT_FDCWD, BINDER_DEVICE, O_RDWR | O_CLOEXEC);
     if (fd < 0) {
-        perror("open binder failed");
+        LOGE("open binder failed: %s", strerror(errno));
         return -1;
     }
 
     uint32_t vers = BINDER_CURRENT_PROTOCOL_VERSION;
     if (ioctl(fd, BINDER_VERSION, &vers) != 0) {
-        perror("binder version mismatch");
+        LOGE("binder version mismatch: %s", strerror(errno));
         close(fd);
         return -1;
     }
@@ -128,9 +125,9 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
     write_buf.cmd = BC_TRANSACTION;
     write_buf.txn = txn;
 
-    ssize_t w = safe_write(binder_fd, &write_buf, sizeof(write_buf));
+    ssize_t w = write(binder_fd, &write_buf, sizeof(write_buf));
     if (w < 0) {
-        perror("write BC_TRANSACTION failed");
+        LOGE("write BC_TRANSACTION failed: %s", strerror(errno));
         return -1;
     }
 
@@ -139,9 +136,9 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
 
 jobject receive_media_projection_reply(int binder_fd, JNIEnv *env) {
     uint8_t buffer[1024];
-    ssize_t r = safe_read(binder_fd, buffer, sizeof(buffer));
+    ssize_t r = read(binder_fd, buffer, sizeof(buffer));
     if (r < 0) {
-        perror("read BR_REPLY failed");
+        LOGE("read BR_REPLY failed: %s", strerror(errno));
         return NULL;
     }
 
@@ -158,11 +155,12 @@ jobject receive_media_projection_reply(int binder_fd, JNIEnv *env) {
                 break;
             }
         }
+
         pos += sizeof(struct binder_transaction_data);
     }
 
     if (!txn_reply) {
-        fprintf(stderr, "No BR_TRANSACTION in binder reply\n");
+        LOGE("No BR_TRANSACTION in binder reply");
         return NULL;
     }
 
@@ -170,19 +168,19 @@ jobject receive_media_projection_reply(int binder_fd, JNIEnv *env) {
     int32_t binder_handle = *((int32_t *)data_ptr);
 
     if (binder_handle == 0) {
-        fprintf(stderr, "Binder handle is null\n");
+        LOGE("Binder handle is null");
         return NULL;
     }
 
     jclass binderClass = (*env)->FindClass(env, "android/os/Binder");
     if (!binderClass) {
-        fprintf(stderr, "Failed to find android.os.Binder\n");
+        LOGE("Failed to find android.os.Binder class");
         return NULL;
     }
 
     jmethodID getBinderFromHandle = (*env)->GetStaticMethodID(env, binderClass, "getBinderFromHandle", "(I)Landroid/os/IBinder;");
     if (!getBinderFromHandle) {
-        fprintf(stderr, "Failed to find method getBinderFromHandle\n");
+        LOGE("Failed to find getBinderFromHandle method");
         return NULL;
     }
 
