@@ -27,11 +27,8 @@
 #include "include/binder_version.h"
 #include "binder_utils.h"
 
-// 🛠️ Define LOGE to easily log errors
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "MirrOxJNI", __VA_ARGS__)
-
-// Define write manually
-ssize_t write(int fd, const void *buf, size_t count);
+// Define LOGE to easily log errors
+#define LOGE(fmt, ...) printf("[MirrOxJNI][ERROR] " fmt "\n", ##__VA_ARGS__)
 
 // Binder constants
 #define BC_TRANSACTION 0x5
@@ -164,8 +161,8 @@ jobject receive_media_projection_reply(int binder_fd, JNIEnv *env) {
         return NULL;
     }
 
-    uintptr_t data_ptr = (uintptr_t)txn_reply->data.ptr.ptr;
-    int32_t binder_handle = *((int32_t *)data_ptr);
+    uint8_t *data_start = (uint8_t *)txn_reply + sizeof(struct binder_transaction_data);
+    int32_t binder_handle = *(int32_t *)data_start;
 
     if (binder_handle == 0) {
         LOGE("Binder handle is null");
