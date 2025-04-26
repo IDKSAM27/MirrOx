@@ -4,3 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+nix = { version = "0.27", features = ["ioctl", "fs"] }
+jni = "0.21"
+log = "0.4"
+android_logger = "0.13"
+
+[lib]
+crate-type = ["cdylib"]
