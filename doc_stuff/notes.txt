@@ -232,3 +232,9 @@ Probably the hardest part is yet to come, and guess what it has arrived:
 24/04/2025
 
 Some major project setup problems noticed.
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+26/04/2025
+
+In binder_utils.c Used Android's Logcat with tag `MirroxJNI`, instead of using `Mirrox` as tag use that instead (only for file or part of the project)
