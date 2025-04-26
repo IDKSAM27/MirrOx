@@ -1,9 +1,5 @@
 #define _GNU_SOURCE
 
-#ifdef write
-#undef write
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -18,7 +14,7 @@
 #include <errno.h>
 #include <sys/uio.h>
 
-#include <android/log.h> // 🛠️ Added for Android logging
+#include <android/log.h> // For Android logs
 
 #include "include/binder.h"
 #include "include/binderfs.h"
@@ -27,37 +23,35 @@
 #include "include/binder_version.h"
 #include "binder_utils.h"
 
-// Define LOGE to easily log errors
+// 📢 Log error using printf (you can switch back to __android_log_print later if you want)
 #define LOGE(fmt, ...) printf("[MirrOxJNI][ERROR] " fmt "\n", ##__VA_ARGS__)
 
 // Binder constants
 #define BC_TRANSACTION 0x5
 #define BR_TRANSACTION 0xC0000000
 
-// Your binder_transaction_data struct remains the same
+// binder_transaction_data struct
 struct binder_transaction_data {
     binder_uintptr_t target;
     binder_uintptr_t cookie;
     uint32_t code;
     uint32_t flags;
-
     union {
         struct {
             binder_uintptr_t ptr;
             binder_size_t length;
         } ptr;
-
         struct {
             uint64_t handle;
             uint64_t cookie;
         } u64;
     } data;
-
     binder_size_t offsets_size;
     binder_size_t data_size;
     binder_uintptr_t data_buffer;
 };
 
+// Open binder device
 int open_binder() {
     int fd = syscall(SYS_openat, AT_FDCWD, BINDER_DEVICE, O_RDWR | O_CLOEXEC);
     if (fd < 0) {
@@ -75,6 +69,7 @@ int open_binder() {
     return fd;
 }
 
+// Send BC_TRANSACTION to create a MediaProjection
 int send_create_projection_transaction(int binder_fd, uint32_t handle) {
     struct {
         uint32_t strict_mode;
@@ -131,6 +126,7 @@ int send_create_projection_transaction(int binder_fd, uint32_t handle) {
     return 0;
 }
 
+// Receive the reply from the binder driver
 jobject receive_media_projection_reply(int binder_fd, JNIEnv *env) {
     uint8_t buffer[1024];
     ssize_t r = read(binder_fd, buffer, sizeof(buffer));
