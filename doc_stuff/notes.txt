@@ -244,3 +244,8 @@ C busted, I'm gonna full on Rusty:
     jni → to interact with Java 
     log + android_logger → to log directly to adb logcat
 
+----------------------------------------------------------------------------------------------------------------------------------
+
+27/04/2025
+
+Added recieve_media_projection in binder.rs
