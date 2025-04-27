@@ -104,5 +104,39 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<(), std:
     data.package_name[..package_name.to_bytes_with_nul().len()]
         .copy_from_slice(package_name.to_bytes_with_nul());
 
-    
+    let txn = BinderTransactionData {
+        target: manager_handle as u64,
+        cookie: 0,
+        code: 1, // createProjection transaction code
+        flags: 0,
+        data_buffer: 0,
+        data_size: mem::size_of::<TransactionData>() as u64,
+        offsets_size: 0,
+        data: [],
+    };
+
+    let write_buf = BinderWriteBuf {
+        cmd: BC_TRANSACTION,
+        txn,
+    };
+
+    // Build the final write buffer
+    let mut raw_buf = Vec::new();
+    raw_buf.extend_from_slice(unsafe {
+        std::slice::from_raw_parts(
+            &write_buf as *const _ as *const u8,
+            mem::size_of::<BinderWriteBuf>(),
+        )
+    });
+
+    raw_buf.extend_from_slice(unsafe {
+        std::slice::from_raw_parts(
+            &data as *const _ as *const u8,
+            mem.size_of::<TransactionData>(),
+        )
+    });
+
+    write(fd, &raw_buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+    Ok(())
 }
