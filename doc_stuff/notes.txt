@@ -249,3 +249,15 @@ C busted, I'm gonna full on Rusty:
 27/04/2025
 
 Added recieve_media_projection in binder.rs
+
+fn receive_media_projection:
+    Read the binder fd into a buffer.
+    Parse commands (u32 values) one by one.
+    When finding a BR_TRANSACTION, treat the next bytes as a BinderTransactionData.
+    Then after the struct, read 4 bytes = binder handle.
+    Return that handle.
+
+fn send_create_projection:
+    First fill a TransactionData (all params packed).
+    Create a BinderTransactionData that points to this data.
+    Then write() the command (BC_TRANSACTION + binder data + arguments) into the Binder device.
