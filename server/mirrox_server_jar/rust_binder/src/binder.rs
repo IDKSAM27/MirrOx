@@ -82,3 +82,27 @@ pub fn receive_media_projection(fd: RawFd) -> Result<u32, std::io::Error> {
 
     Err(Error::new(ErrorKind::NotFound, "No BR_TRANSACTION found!"))
 }
+
+pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<(), std::io::Error> {
+    let descriptor = CString::new("android.media.projection.IMediaProjectionManager").unwrap();
+    let package_name = CString::new("com.mirrox.server").unwrap();
+
+    let mut data = TransactionData {
+        strict_mode_policy: 0x01000000,
+        interface_token_length: descriptor.to_bytes_with_nul().len() as u32,
+        interface_token: [0; 128],
+        uid: nix::unistd::geteuid().as_raw() as u32,
+        package_name_length: package_name.to_bytes_with_nul().len() as u32,
+        package_name: [0; 128],
+        param3: 0,
+        param4: 0,
+    };
+
+    data.interface_token[..descriptor.to_bytes_with_nul().len()]
+        .copy_from_slice(descriptor.to_bytes_with_nul());
+
+    data.package_name[..package_name.to_bytes_with_nul().len()]
+        .copy_from_slice(package_name.to_bytes_with_nul());
+
+    
+}
