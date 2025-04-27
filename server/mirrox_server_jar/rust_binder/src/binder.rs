@@ -1,12 +1,18 @@
-use nix::unistd::read;
+use nix::unistd::{write, read};
 use std::os::unix::io::RawFd;
 use std::io::{Error, ErrorKind};
+use std::mem;
+use std::ffi::CString;
+use nix::errno::Errno;
 
 const BR_TRANSACTION: u32 = 0xC00000000;
+// Binder command constants
+const BC_TRANSACTION: u32 = 0x5;
+// Binder flags
+const TF_ONE_WAY: u32 = 0x01;
 
 #[repr(C)]
 #[derive(Debug)]
-
 struct BinderTransactionData {
     target: u64,
     cookie: u64,
@@ -16,6 +22,24 @@ struct BinderTransactionData {
     data_size: u64,
     offsets_size: u64,
     data: [u8; 0], // Manually offset after the struct
+}
+
+#[repr(C, packed)]
+struct TransactionData {
+    strict_mode_policy: u32,
+    interface_token_length: u32,
+    interface_token: [u8; 128],
+    uid: u32,
+    package_name_length: u32,
+    package_name: [u8; 128],
+    param3: u32,
+    param4: u32,
+}
+
+#[repr(C, packed)]
+struct BinderWriteBuf {
+    cmd: u32,
+    txn: BinderTransactionData,
 }
 
 pub fn receive_media_projection(fd: RawFd) -> Result<u32, std::io::Error> {
