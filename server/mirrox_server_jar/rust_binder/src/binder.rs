@@ -47,8 +47,14 @@ pub fn receive_media_projection(fd: RawFd) -> Result<u32, std::io::Error> {
                 return Err(Error::new(ErrorKind::UnexpectedEof, "No binder handle found"));
             }
 
+            let binder_handle = u32::from_ne_bytes(buffer[data_start..data_start+4].try_into().unwrap());
 
+            return Ok(binder_handle);
             
         }
+
+        pos += std::mem::size_of::<BinderTransactionData>(); // Skip unknown transaction
     }
+
+    Err(Error::new(ErrorKind::NotFound, "No BR_TRANSACTION found!"))
 }
