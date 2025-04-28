@@ -5,7 +5,7 @@ use std::mem;
 use std::ffi::CString;
 use nix::errno::Errno;
 
-const BR_TRANSACTION: u32 = 0xC00000000;
+const BR_TRANSACTION: u32 = 0x0C; // 0x0C = 12 decimals
 // Binder command constants
 const BC_TRANSACTION: u32 = 0x5;
 // Binder flags
@@ -20,6 +20,7 @@ struct BinderTransactionData {
     flags: u32,
     data_buffer: u64,
     data_size: u64,
+    offset_offset: u64,
     offsets_size: u64,
     data: [u8; 0], // Manually offset after the struct
 }
@@ -108,7 +109,7 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<(), std:
         target: manager_handle as u64,
         cookie: 0,
         code: 1, // createProjection transaction code
-        flags: 0,
+        flags: TF_ONE_WAY,
         data_buffer: 0,
         data_size: mem::size_of::<TransactionData>() as u64,
         offsets_size: 0,
@@ -132,7 +133,7 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<(), std:
     raw_buf.extend_from_slice(unsafe {
         std::slice::from_raw_parts(
             &data as *const _ as *const u8,
-            mem.size_of::<TransactionData>(),
+            mem::size_of::<TransactionData>(),
         )
     });
 
