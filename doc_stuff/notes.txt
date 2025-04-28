@@ -261,3 +261,12 @@ fn send_create_projection:
     First fill a TransactionData (all params packed).
     Create a BinderTransactionData that points to this data.
     Then write() the command (BC_TRANSACTION + binder data + arguments) into the Binder device.
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+28/04/2025
+
+rustup target add aarch64-linux-android (anywhere)
+cargo install cargo-ndk (anywhere)
+
+cargo ndk -t arm64-v8a -o ./target/ --platform 21 build (rust_binder/)
