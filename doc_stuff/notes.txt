@@ -269,4 +269,4 @@ fn send_create_projection:
 rustup target add aarch64-linux-android (anywhere)
 cargo install cargo-ndk (anywhere)
 
-cargo ndk -t arm64-v8a -o ./target/ android-21 build (rust_binder/)
+cargo ndk -t arm64-v8a -o ./target/ --platform 21 build (rust_binder/)
