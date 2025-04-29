@@ -3,7 +3,6 @@ use std::os::unix::io::RawFd;
 use std::io::{Error, ErrorKind};
 use std::mem;
 use std::ffi::CString;
-use nix::errno::Errno;
 
 const BR_TRANSACTION: u32 = 0x0C; // 0x0C = 12 decimals
 // Binder command constants
@@ -37,6 +36,7 @@ struct TransactionData {
     param4: u32,
 }
 
+#[warn(unused_variables)]
 #[repr(C, packed)]
 struct BinderWriteBuf {
     cmd: u32,
