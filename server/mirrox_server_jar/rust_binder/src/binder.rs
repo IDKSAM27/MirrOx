@@ -20,7 +20,7 @@ struct BinderTransactionData {
     flags: u32,
     data_buffer: u64,
     data_size: u64,
-    offset_offset: u64,
+    offset_buffer: u64,
     offsets_size: u64,
     data: [u8; 0], // Manually offset after the struct
 }
@@ -112,6 +112,7 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<(), std:
         flags: TF_ONE_WAY,
         data_buffer: 0,
         data_size: mem::size_of::<TransactionData>() as u64,
+        offset_buffer: 0,
         offsets_size: 0,
         data: [],
     };
