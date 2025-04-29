@@ -1,12 +1,12 @@
 use std::os::unix::io::RawFd;
 use nix::fcntl::{open, OFlag};
 use nix::sys::stat::Mode;
-use nix::unistd::{read, write};
 use jni::JNIEnv;
 use jni::objects::JClass;
 use jni::sys::jobject;
 use log::error;
 
+#[warn(unused_variables)]
 #[no_mangle]
 pub extern "system" fn Java_com_mirrox_server_StartMirrox_nativeGetMediaProjection(
     env: JNIEnv,
@@ -14,7 +14,7 @@ pub extern "system" fn Java_com_mirrox_server_StartMirrox_nativeGetMediaProjecti
 ) -> jobject {
     android_logger::init_once(
         android_logger::Config::default()
-            .with_min_level(log::Level::Debug)
+            .with_max_level(log::LevelFilter::Debug)
             .with_tag("MirrOxRust"),
     );
 

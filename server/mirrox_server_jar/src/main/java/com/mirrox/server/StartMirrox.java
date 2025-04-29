@@ -1,22 +1,19 @@
 package com.mirrox.server;
 
-import android.os.IBinder;
-
 public class StartMirrox {
 
-    // Load the native .so library
     static {
-        System.load("/data/local/tmp/mirrox_libs/libmirroxjni.so");
+        System.load("/data/local/tmp/librust_binder.so");
     }
 
-    // Declare the native method
-    public static native IBinder getMediaProjectionTokenNative();
+    public static native void getMediaProjectionTokenNative();
 
     public static void main(String[] args) {
         System.out.println("✅ MirrOx Server Started using main()");
 
-        // Call the native method and print its result
-        IBinder projectionToken = getMediaProjectionTokenNative();
-        System.out.println("📣 JNI result: " + projectionToken);
+        // Call native method that triggers raw Binder IPC
+        getMediaProjectionTokenNative();
+
+        System.out.println("📣 Native call finished.");
     }
 }

@@ -3,7 +3,6 @@ use std::os::unix::io::RawFd;
 use std::io::{Error, ErrorKind};
 use std::mem;
 use std::ffi::CString;
-use nix::errno::Errno;
 
 const BR_TRANSACTION: u32 = 0x0C; // 0x0C = 12 decimals
 // Binder command constants
@@ -20,7 +19,7 @@ struct BinderTransactionData {
     flags: u32,
     data_buffer: u64,
     data_size: u64,
-    offset_offset: u64,
+    offset_buffer: u64,
     offsets_size: u64,
     data: [u8; 0], // Manually offset after the struct
 }
@@ -37,6 +36,7 @@ struct TransactionData {
     param4: u32,
 }
 
+#[warn(unused_variables)]
 #[repr(C, packed)]
 struct BinderWriteBuf {
     cmd: u32,
@@ -112,6 +112,7 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<(), std:
         flags: TF_ONE_WAY,
         data_buffer: 0,
         data_size: mem::size_of::<TransactionData>() as u64,
+        offset_buffer: 0,
         offsets_size: 0,
         data: [],
     };
