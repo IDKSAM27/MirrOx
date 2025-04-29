@@ -5,6 +5,7 @@ use jni::JNIEnv;
 use jni::objects::JClass;
 use jni::sys::jobject;
 use log::error;
+use log::LevelFilter;
 
 #[no_mangle]
 pub extern "system" fn Java_com_mirrox_server_StartMirrox_nativeGetMediaProjection(
