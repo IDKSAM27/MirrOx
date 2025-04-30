@@ -8,7 +8,7 @@ use log::error;
 
 #[warn(unused_variables)]
 #[no_mangle]
-pub extern "system" fn Java_com_mirrox_server_StartMirrox_nativeGetMediaProjection(
+pub extern "system" fn Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative(
     env: JNIEnv,
     _class: JClass,
 ) -> jobject {
@@ -42,4 +42,12 @@ fn open_binder() -> nix::Result<RawFd> {
 fn send_create_projection_transaction(_binder_fd: RawFd) -> nix::Result<()> {
     // TODO: Implement Binder protocol here
     Ok(())
+}
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn android_main() {
+    std::panic::set_hook(Box::new(|info| {
+        log::error!("Rust panic: {:?}", info);
+    }));
 }
