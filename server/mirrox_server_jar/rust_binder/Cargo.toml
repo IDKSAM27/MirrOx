@@ -10,4 +10,8 @@ log = "0.4"
 android_logger = "0.13"
 
 [lib]
+name = "rust_binder"
 crate-type = ["cdylib"]
+
+[profile.release]
+debug = true
