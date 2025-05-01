@@ -1,5 +1,6 @@
 mod binder_utils;
 mod media_projection;
+mod binder_transaction;
 
 use jni::objects::{JClass, JObject};
 use jni::sys::jobject;
@@ -8,7 +9,7 @@ use log::error;
 
 #[no_mangle]
 pub extern "system" fn Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
 ) -> jobject {
     android_logger::init_once(
