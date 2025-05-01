@@ -3,6 +3,7 @@ package com.mirrox.server;
 import android.os.IBinder;
 
 public class StartMirrox {
+
     static {
         System.load("/data/local/tmp/librust_binder.so");
     }
@@ -11,7 +12,7 @@ public class StartMirrox {
 
     public static void main(String[] args) {
         System.out.println("✅ MirrOx Server Started using main()");
-        IBinder projectionToken = getMediaProjectionTokenNative();
-        System.out.println("📣 JNI result: " + projectionToken);
+        IBinder token = getMediaProjectionTokenNative();
+        System.out.println("📣 JNI result: " + token);
     }
 }
