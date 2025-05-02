@@ -1,13 +1,16 @@
-use std::fs::OpenOptions;
-use std::os::unix::io::{AsRawFd, RawFd};
-use std::io::{Error, ErrorKind};
+use std::ffi::CString;
+use libc::{SYS_openat, O_RDWR, O_CLOEXEC};
+use std::io::{Error, Result};
+use std::os::unix::io::RawFd;
+use nix::libc;
 
-pub fn open_binder_device() -> Result<RawFd, Error> {
-    let binder = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open("/dev/binder")
-        .map_err(|e| Error::new(ErrorKind::Other, format!("Failed to open /dev/binder: {}", e)))?;
+pub fn open_binder_device() -> Result<RawFd> {
+    let path = CString::new("/dev/binder").unwrap();
+    let fd = unsafe { libc::syscall(SYS_openat, path.as_ptr(), O_RDWR | O_CLOEXEC) as RawFd };
 
-    Ok(binder.as_raw_fd())
+    if fd < 0 {
+        Err(Error::last_os_error())
+    } else {
+        Ok(fd)
+    }
 }

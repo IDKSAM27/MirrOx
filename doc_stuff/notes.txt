@@ -285,4 +285,3 @@ adb push rust_binder/target/arm64-v8a/librust_binder.so /data/local/tmp/
 adb shell chmod 755 /data/local/tmp/librust_binder.so
 
 adb shell "CLASSPATH=/data/local/tmp/mirrox_server.dex.jar app_process / com.mirrox.server.StartMirrox"
-

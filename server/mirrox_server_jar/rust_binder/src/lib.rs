@@ -2,7 +2,7 @@ mod binder_utils;
 mod media_projection;
 mod binder_transaction;
 
-use jni::objects::{JClass, JObject};
+use jni::objects::JClass;
 use jni::sys::jobject;
 use jni::JNIEnv;
 use log::error;
