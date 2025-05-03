@@ -2,6 +2,7 @@ use std::io::{Result, Error, ErrorKind};
 use std::mem;
 use std::os::unix::io::RawFd;
 use libc::{c_void, ioctl};
+use std::ffi::CString;
 
 // Required ioctl number for BINDER_WRITE_READ
 const BINDER_WRITE_READ: u64 = 0xC0306201;
@@ -59,7 +60,7 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> std::io::Result
         target: manager_handle as u64,
         cookie: 0,
         code: 1, // createProjection
-        flags: TF_ONE_WAY,
+        flags: 0, // BEFORE IT WAS TF_ONE_WAY,
         data_buffer: parcel_ptr,
         data_size: parcel_len,
         offsets_buffer: 0,
@@ -68,7 +69,7 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> std::io::Result
 
     // Create write buffer (BC_TRANSACTION followed by BinderTransactionData)
     let mut write_buf = Vec::new();
-    write_buf.extend_from_slice(&BC_TRANSACTION.to_ne_bytes());
+    write_buf.extend_from_slice(&BR_TRANSACTION.to_ne_bytes()); // BC_TRANSACTION before
     write_buf.extend_from_slice(unsafe {
         std::slice::from_raw_parts(&txn as *const _ as *const u8, mem::size_of::<BinderTransactionData>())
     });
