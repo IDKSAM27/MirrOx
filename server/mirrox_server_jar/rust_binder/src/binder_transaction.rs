@@ -1,8 +1,9 @@
 use std::io::{Result, Error, ErrorKind};
 use std::mem;
 use std::os::unix::io::RawFd;
-use libc::{c_void, ioctl};
+use nix::libc::{c_void, ioctl};
 use std::ffi::CString;
+use nix::unistd::geteuid;
 
 // Required ioctl number for BINDER_WRITE_READ
 const BINDER_WRITE_READ: u64 = 0xC0306201;
