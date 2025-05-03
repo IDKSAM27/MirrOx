@@ -6,7 +6,8 @@ use std::ffi::CString;
 use nix::unistd::geteuid;
 
 // Required ioctl number for BINDER_WRITE_READ
-const BINDER_WRITE_READ: u64 = 0xC0306201;
+// const BINDER_WRITE_READ: u64 = 0xC0306201;
+const BINDER_WRITE_READ: u64 = 0xC0306201u32 as i32;
 const BR_TRANSACTION: u32 = 0x1c;
 const BR_REPLY: u32 = 0x1f;
 
