@@ -1,15 +1,15 @@
+use std::io::{Result, Error, ErrorKind};
 use std::mem;
-use std::ptr;
 use std::os::unix::io::RawFd;
+use nix::libc::{c_void, ioctl};
 use std::ffi::CString;
 use nix::unistd::geteuid;
-use nix::libc::{c_void, ioctl};
-use std::error::Error;
 
 // Required ioctl number for BINDER_WRITE_READ
-const BINDER_WRITE_READ: u64 = 0xC0306201;
-const BC_TRANSACTION: u32 = 0x5;
-const TF_ONE_WAY: u32 = 0x01;
+// const BINDER_WRITE_READ: u64 = 0xC0306201;
+const BINDER_WRITE_READ: i32 = 0xC0306201u32 as i32;
+const BR_TRANSACTION: u32 = 0x1c;
+const BR_REPLY: u32 = 0x1f;
 
 // Structs
 #[repr(C)]
@@ -62,7 +62,7 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> std::io::Result
         target: manager_handle as u64,
         cookie: 0,
         code: 1, // createProjection
-        flags: TF_ONE_WAY,
+        flags: 0, // BEFORE IT WAS TF_ONE_WAY,
         data_buffer: parcel_ptr,
         data_size: parcel_len,
         offsets_buffer: 0,
@@ -71,7 +71,7 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> std::io::Result
 
     // Create write buffer (BC_TRANSACTION followed by BinderTransactionData)
     let mut write_buf = Vec::new();
-    write_buf.extend_from_slice(&BC_TRANSACTION.to_ne_bytes());
+    write_buf.extend_from_slice(&BR_TRANSACTION.to_ne_bytes()); // BC_TRANSACTION before
     write_buf.extend_from_slice(unsafe {
         std::slice::from_raw_parts(&txn as *const _ as *const u8, mem::size_of::<BinderTransactionData>())
     });
@@ -102,15 +102,47 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> std::io::Result
     Ok(())
 }
 
-pub fn receive_binder_reply(fd: RawFd) -> Result<()> {
-    let mut buffer = [0u8; 1024];
-    let bytes = read(fd, &mut buffer).map_err(|e| Error::new(ErrorKind::Other, e))?;
+pub fn receive_binder_reply(fd: RawFd) -> Result<u32> {
+    let mut read_buf = vec![0u8; 4096];
 
-    println!("[temp_receive_binder_reply] Read {} bytes", bytes);
-    for (i, chunk) in buffer[..bytes].chunks(4).enumerate() {
-        let val = u32::from_ne_bytes(chunk.try_into().unwrap_or([0, 0, 0, 0]));
-        println!("  Word {}: 0x{:08x}", i, val);
+    let mut bwr = BinderWriteRead {
+        write_size: 0,
+        write_consumed: 0,
+        write_buffer: 0,
+        read_size: read_buf.len() as u64,
+        read_consumed: 0,
+        read_buffer: read_buf.as_mut_ptr() as u64,
+    };
+
+    let ret = unsafe {
+        ioctl(fd, BINDER_WRITE_READ, &mut bwr as *mut _ as *mut c_void)
+    };
+
+    if ret < 0 {
+        return Err(Error::last_os_error());
     }
 
-    Ok(())
+    let bytes_read = bwr.read_consumed as usize;
+    println!("📥 Binder reply received ({} bytes)", bytes_read);
+
+    let mut offset = 0;
+    while offset + 4 <= bytes_read {
+        let cmd = u32::from_ne_bytes(read_buf[offset..offset + 4].try_into().unwrap());
+        offset += 4;
+
+        match cmd {
+            BR_TRANSACTION | BR_REPLY => {
+                println!("📦 Received binder reply (cmd = 0x{:x})", cmd);
+
+                // This is where you'd normally parse transaction data.
+                // For now, return a dummy handle (or later extract actual object).
+                return Ok(123); // Dummy IBinder handle
+            }
+            unknown => {
+                println!("⚠️ Unknown binder cmd: 0x{:x}", unknown);
+            }
+        }
+    }
+
+    Err(Error::new(ErrorKind::Other, "No valid binder reply received"))
 }
