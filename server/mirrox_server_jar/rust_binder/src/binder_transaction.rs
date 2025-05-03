@@ -1,15 +1,12 @@
+use std::io::{Result, Error, ErrorKind};
 use std::mem;
-use std::ptr;
 use std::os::unix::io::RawFd;
-use std::ffi::CString;
-use nix::unistd::geteuid;
-use nix::libc::{c_void, ioctl};
-use std::error::Error;
+use libc::{c_void, ioctl};
 
 // Required ioctl number for BINDER_WRITE_READ
 const BINDER_WRITE_READ: u64 = 0xC0306201;
-const BC_TRANSACTION: u32 = 0x5;
-const TF_ONE_WAY: u32 = 0x01;
+const BR_TRANSACTION: u32 = 0x1c;
+const BR_REPLY: u32 = 0x1f;
 
 // Structs
 #[repr(C)]
