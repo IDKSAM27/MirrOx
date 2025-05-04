@@ -5,9 +5,11 @@ use std::{
     os::unix::io::RawFd,
     ptr,
 };
-use libc::{geteuid, ioctl, c_void};
+use nix::libc::{geteuid, ioctl, c_void};
+use std::io::ErrorKind;
 
 // These must match kernel definitions
+const BR_REPLY: u32 = 0x3;
 const BC_TRANSACTION: u32 = 0x5;
 const BINDER_WRITE_READ: u32 = 0xC0306201;
 const TRANSACTION_createProjection: u32 = 1;
@@ -42,7 +44,7 @@ struct binder_transaction_data_ptr {
 
 #[repr(C)]
 #[derive(Debug)]
-struct binder_write_read {
+struct BinderWriteRead {
     write_size: u64,
     write_consumed: u64,
     write_buffer: u64,
@@ -126,4 +128,62 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<()> {
     println!("[>] First few reply bytes: {:02X?}", &read_buf[..std::cmp::min(32, bwr.read_consumed as usize)]);
 
     Ok(())
+}
+
+
+pub fn receive_binder_reply(fd: RawFd) -> Result<u32> {
+    let mut read_buf = vec![0u8; 4096];
+
+    let mut bwr = BinderWriteRead {
+        write_size: 0,
+        write_consumed: 0,
+        write_buffer: 0,
+        read_size: read_buf.len() as u64,
+        read_consumed: 0,
+        read_buffer: read_buf.as_mut_ptr() as u64,
+    };
+
+    let ret = unsafe { ioctl(fd, BINDER_WRITE_READ, &mut bwr as *mut _ as *mut c_void) };
+
+    if ret < 0 {
+        return Err(Error::last_os_error());
+    }
+
+    let bytes_read = bwr.read_consumed as usize;
+    println!("📥 Binder reply received ({} bytes)", bytes_read);
+
+    let mut offset = 0;
+    while offset + 4 <= bytes_read {
+        let cmd = u32::from_ne_bytes(read_buf[offset..offset + 4].try_into().unwrap());
+        offset += 4;
+
+        match cmd {
+            BR_REPLY => {
+                println!("📦 Received BR_REPLY (0x{:x})", cmd);
+
+                if offset + size_of::<binder_transaction_data>() > bytes_read {
+                    return Err(Error::new(ErrorKind::UnexpectedEof, "Incomplete binder_transaction_data"));
+                }
+
+                let txn: binder_transaction_data = unsafe {
+                    ptr::read_unaligned(read_buf[offset..].as_ptr() as *const _)
+                };
+
+                offset += size_of::<binder_transaction_data>();
+
+                // Extract raw buffer pointer if returned
+                let ptr = unsafe { txn.data.ptr.buffer };
+                println!("📍 Returned binder object pointer: 0x{:x}", ptr);
+
+                // You’ll need to parse the buffer to extract a real IBinder if it’s a binder reference
+                return Ok(ptr as u32); // OR further parse the buffer!
+            }
+            unknown => {
+                println!("⚠️ Unknown binder cmd: 0x{:x}", unknown);
+                break; // or continue depending on expected flow
+            }
+        }
+    }
+
+    Err(Error::new(ErrorKind::Other, "No valid BR_REPLY received"))
 }
