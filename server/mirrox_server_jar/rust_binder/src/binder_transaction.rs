@@ -1,32 +1,19 @@
-use std::io::{Result, Error, ErrorKind};
-use std::mem;
-use std::os::unix::io::RawFd;
-use nix::libc::{c_void, ioctl};
+use std::{
+    io::{Error, ErrorKind, Result},
+    mem::{size_of, ManuallyDrop},
+    os::unix::io::RawFd,
+    ptr,
+    mem,
+};
+use nix::libc::{ioctl, c_void, geteuid};
 use std::ffi::CString;
-use nix::unistd::geteuid;
 
-// Required ioctl number for BINDER_WRITE_READ
-// const BINDER_WRITE_READ: u64 = 0xC0306201;
+const BC_TRANSACTION: u32 = 0x40046301; // ioctl command to perform Binder transaction
+const BR_REPLY: u32 = 0x3;
 const BINDER_WRITE_READ: i32 = 0xC0306201u32 as i32;
-const BR_TRANSACTION: u32 = 0x1c;
-const BR_REPLY: u32 = 0x1f;
-
-// Structs
-#[repr(C)]
-#[derive(Debug)]
-struct BinderTransactionData {
-    target: u64,          // handle or ptr
-    cookie: u64,          // always 0
-    code: u32,            // createProjection = 1
-    flags: u32,           // e.g. TF_ONE_WAY
-    data_buffer: u64,     // pointer to parcel buffer
-    data_size: u64,
-    offsets_buffer: u64,  // null (no binder refs)
-    offsets_size: u64,
-}
+const TRANSACTION_CREATE_PROJECTION: u32 = 1; // Typically FIRST_CALL_TRANSACTION + 1
 
 #[repr(C)]
-#[derive(Debug)]
 struct BinderWriteRead {
     write_size: u64,
     write_consumed: u64,
@@ -36,50 +23,84 @@ struct BinderWriteRead {
     read_buffer: u64,
 }
 
-pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> std::io::Result<()> {
+#[repr(C)]
+#[derive(Copy, Clone)]
+struct binder_transaction_data_ptr {
+    buffer: u64,
+    offsets: u64,
+}
+
+#[repr(C)]
+union binder_transaction_data_data {
+    ptr: ManuallyDrop<binder_transaction_data_ptr>,
+    buf: [u8; 8],
+}
+
+#[repr(C)]
+struct binder_transaction_data {
+    target: u64,
+    cookie: u64,
+    code: u32,
+    flags: u32,
+    sender_pid: u32,
+    sender_euid: u32,
+    data_size: u64,
+    offsets_size: u64,
+    data: binder_transaction_data_data,
+}
+
+pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<()> {
     let iface = CString::new("android.media.projection.IMediaProjectionManager").unwrap();
     let pkg = CString::new("com.mirrox.server").unwrap();
 
     let mut parcel = Vec::new();
 
-    // === AIDL Parcel format ===
-    parcel.extend_from_slice(&(0x01000000u32).to_le_bytes()); // strict mode policy
+    // === Parcel setup ===
+    parcel.extend_from_slice(&0x01000000u32.to_le_bytes()); // Strict mode policy
     parcel.extend_from_slice(&(iface.to_bytes_with_nul().len() as u32).to_le_bytes());
     parcel.extend_from_slice(iface.to_bytes_with_nul());
-    parcel.resize(4 + 4 + 128, 0); // pad interface_token
-    parcel.extend_from_slice(&(geteuid().as_raw() as u32).to_le_bytes()); // UID
+    parcel.resize(4 + 4 + 128, 0); // pad interface_token to 128
+
+    parcel.extend_from_slice(&(unsafe { geteuid() } as u32).to_le_bytes());
     parcel.extend_from_slice(&(pkg.to_bytes_with_nul().len() as u32).to_le_bytes());
     parcel.extend_from_slice(pkg.to_bytes_with_nul());
     parcel.resize(parcel.len() + (128 - pkg.to_bytes_with_nul().len()), 0); // pad package
-    parcel.extend_from_slice(&0u32.to_le_bytes()); // flags (0)
+    parcel.extend_from_slice(&0u32.to_le_bytes()); // flags
     parcel.extend_from_slice(&0u32.to_le_bytes()); // unused
 
-    // Allocate buffer in memory
-    let parcel_ptr = parcel.as_ptr() as u64;
-    let parcel_len = parcel.len() as u64;
+    println!("[*] Parcel buffer size: {}", parcel.len());
 
-    let txn = BinderTransactionData {
+    // === Transaction ===
+    let txn_data = binder_transaction_data {
         target: manager_handle as u64,
         cookie: 0,
-        code: 1, // createProjection
-        flags: 0, // BEFORE IT WAS TF_ONE_WAY,
-        data_buffer: parcel_ptr,
-        data_size: parcel_len,
-        offsets_buffer: 0,
+        code: TRANSACTION_CREATE_PROJECTION,
+        flags: 0, // No TF_ONE_WAY
+        sender_pid: 0,
+        sender_euid: 0,
+        data_size: parcel.len() as u64,
         offsets_size: 0,
+        data: binder_transaction_data_data {
+            ptr: ManuallyDrop::new(binder_transaction_data_ptr {
+                buffer: parcel.as_ptr() as u64,
+                offsets: 0,
+            }),
+        },
     };
 
-    // Create write buffer (BC_TRANSACTION followed by BinderTransactionData)
+    // === Write buffer ===
     let mut write_buf = Vec::new();
-    write_buf.extend_from_slice(&BR_TRANSACTION.to_ne_bytes()); // BC_TRANSACTION before
+    write_buf.extend_from_slice(&BC_TRANSACTION.to_ne_bytes());
     write_buf.extend_from_slice(unsafe {
-        std::slice::from_raw_parts(&txn as *const _ as *const u8, mem::size_of::<BinderTransactionData>())
+        std::slice::from_raw_parts(
+            &txn_data as *const _ as *const u8,
+            mem::size_of::<binder_transaction_data>(),
+        )
     });
 
-    // Create empty read buffer
+    // === Read buffer ===
     let mut read_buf = vec![0u8; 4096];
 
-    // Set up binder_write_read
     let mut bwr = BinderWriteRead {
         write_size: write_buf.len() as u64,
         write_consumed: 0,
@@ -89,18 +110,22 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> std::io::Result
         read_buffer: read_buf.as_mut_ptr() as u64,
     };
 
-    // Perform ioctl
-    let ret = unsafe {
-        ioctl(fd, BINDER_WRITE_READ, &mut bwr as *mut _ as *mut c_void)
-    };
+    // === IOCTL ===
+    println!("[*] Sending binder transaction...");
+    let ret = unsafe { ioctl(fd, BINDER_WRITE_READ as _, &mut bwr as *mut _ as *mut c_void) };
 
     if ret < 0 {
-        return Err(std::io::Error::last_os_error());
+        return Err(Error::last_os_error());
     }
 
-    println!("✅ Binder transaction succeeded. Bytes read: {}", bwr.read_consumed);
+    println!("[+] Binder transaction sent! Read consumed: {}", bwr.read_consumed);
+
+    // === Optional: Print some of the reply ===
+    println!("[>] First few reply bytes: {:02X?}", &read_buf[..std::cmp::min(32, bwr.read_consumed as usize)]);
+
     Ok(())
 }
+
 
 pub fn receive_binder_reply(fd: RawFd) -> Result<u32> {
     let mut read_buf = vec![0u8; 4096];
@@ -131,18 +156,29 @@ pub fn receive_binder_reply(fd: RawFd) -> Result<u32> {
         offset += 4;
 
         match cmd {
-            BR_TRANSACTION | BR_REPLY => {
-                println!("📦 Received binder reply (cmd = 0x{:x})", cmd);
+            BR_REPLY => {
+                println!("📦 Received BR_REPLY (0x{:x})", cmd);
 
-                // This is where you'd normally parse transaction data.
-                // For now, return a dummy handle (or later extract actual object).
-                return Ok(123); // Dummy IBinder handle
+                if offset + size_of::<binder_transaction_data>() > bytes_read {
+                    return Err(Error::new(ErrorKind::UnexpectedEof, "Incomplete binder_transaction_data"));
+                }
+
+                let txn: binder_transaction_data = unsafe {
+                    ptr::read_unaligned(read_buf[offset..].as_ptr() as *const _)
+                };
+
+                offset += size_of::<binder_transaction_data>();
+
+                let ptr = unsafe { txn.data.ptr.buffer };
+                println!("📍 Returned binder object pointer: 0x{:x}", ptr);
+                return Ok(ptr as u32);
             }
             unknown => {
                 println!("⚠️ Unknown binder cmd: 0x{:x}", unknown);
+                break;
             }
         }
     }
 
-    Err(Error::new(ErrorKind::Other, "No valid binder reply received"))
+    Err(Error::new(ErrorKind::Other, "No valid BR_REPLY received"))
 }
