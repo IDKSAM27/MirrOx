@@ -1,21 +1,40 @@
 use std::{
-    ffi::CString,
-    io::{Error, Result},
-    mem,
+    io::{Error, ErrorKind, Result},
+    mem::{size_of, ManuallyDrop},
     os::unix::io::RawFd,
     ptr,
+    mem,
 };
-use nix::libc::{geteuid, ioctl, c_void};
-use std::io::ErrorKind;
+use nix::libc::{ioctl, c_void, geteuid};
+use std::ffi::CString;
 
-// These must match kernel definitions
 const BR_REPLY: u32 = 0x3;
-const BC_TRANSACTION: u32 = 0x5;
-const BINDER_WRITE_READ: u32 = 0xC0306201;
-const TRANSACTION_createProjection: u32 = 1;
+const BINDER_WRITE_READ: i32 = 0xC0306201; // <-- i32 now
 
 #[repr(C)]
-#[derive(Debug)]
+struct BinderWriteRead {
+    write_size: u64,
+    write_consumed: u64,
+    write_buffer: u64,
+    read_size: u64,
+    read_consumed: u64,
+    read_buffer: u64,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+struct binder_transaction_data_ptr {
+    buffer: u64,
+    offsets: u64,
+}
+
+#[repr(C)]
+union binder_transaction_data_data {
+    ptr: ManuallyDrop<binder_transaction_data_ptr>,
+    buf: [u8; 8],
+}
+
+#[repr(C)]
 struct binder_transaction_data {
     target: u64,
     cookie: u64,
@@ -26,31 +45,6 @@ struct binder_transaction_data {
     data_size: u64,
     offsets_size: u64,
     data: binder_transaction_data_data,
-}
-
-#[repr(C)]
-#[derive(Debug)]
-union binder_transaction_data_data {
-    ptr: binder_transaction_data_ptr,
-    buf: [u8; 8],
-}
-
-#[repr(C)]
-#[derive(Debug)]
-struct binder_transaction_data_ptr {
-    buffer: u64,
-    offsets: u64,
-}
-
-#[repr(C)]
-#[derive(Debug)]
-struct BinderWriteRead {
-    write_size: u64,
-    write_consumed: u64,
-    write_buffer: u64,
-    read_size: u64,
-    read_consumed: u64,
-    read_buffer: u64,
 }
 
 pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<()> {
@@ -143,7 +137,9 @@ pub fn receive_binder_reply(fd: RawFd) -> Result<u32> {
         read_buffer: read_buf.as_mut_ptr() as u64,
     };
 
-    let ret = unsafe { ioctl(fd, BINDER_WRITE_READ, &mut bwr as *mut _ as *mut c_void) };
+    let ret = unsafe {
+        ioctl(fd, BINDER_WRITE_READ, &mut bwr as *mut _ as *mut c_void)
+    };
 
     if ret < 0 {
         return Err(Error::last_os_error());
@@ -171,16 +167,13 @@ pub fn receive_binder_reply(fd: RawFd) -> Result<u32> {
 
                 offset += size_of::<binder_transaction_data>();
 
-                // Extract raw buffer pointer if returned
                 let ptr = unsafe { txn.data.ptr.buffer };
                 println!("📍 Returned binder object pointer: 0x{:x}", ptr);
-
-                // You’ll need to parse the buffer to extract a real IBinder if it’s a binder reference
-                return Ok(ptr as u32); // OR further parse the buffer!
+                return Ok(ptr as u32);
             }
             unknown => {
                 println!("⚠️ Unknown binder cmd: 0x{:x}", unknown);
-                break; // or continue depending on expected flow
+                break;
             }
         }
     }
