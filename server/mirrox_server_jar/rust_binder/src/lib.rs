@@ -2,14 +2,14 @@ mod binder_utils;
 mod media_projection;
 mod binder_transaction;
 
-use jni::objects::JClass;
+use jni::objects::{JClass, JObject, JValue};
 use jni::sys::jobject;
 use jni::JNIEnv;
-use log::error;
+use log::{error, info};
 
 #[no_mangle]
 pub extern "system" fn Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _class: JClass,
 ) -> jobject {
     android_logger::init_once(
@@ -18,16 +18,46 @@ pub extern "system" fn Java_com_mirrox_server_StartMirrox_getMediaProjectionToke
             .with_tag("MirrOxRust"),
     );
 
-    log::info!("📡 Native getMediaProjectionTokenNative called");
+    info!("📡 Native getMediaProjectionTokenNative called");
 
-    // Attempt to create MediaProjection token via raw Binder IPC
     match media_projection::create_media_projection_token() {
-        Some(_) => log::info!("✅ Binder transaction succeeded"),
-        None => error!("❌ Binder transaction failed"),
+        Some(token_ptr) => {
+            info!("✅ Received MediaProjection token ptr: 0x{:x}", token_ptr);
+
+            // Step 1: Find android.os.Binder class
+            let binder_class = match env.find_class("android/os/Binder") {
+                Ok(cls) => cls,
+                Err(e) => {
+                    error!("❌ Failed to find Binder class: {:?}", e);
+                    return std::ptr::null_mut();
+                }
+            };
+
+            // Step 2: Call nativeInit(long) on Binder object
+            let binder_obj = match env.new_object(binder_class, "()V", &[]) {
+                Ok(obj) => obj,
+                Err(e) => {
+                    error!("❌ Failed to create Binder instance: {:?}", e);
+                    return std::ptr::null_mut();
+                }
+            };
+
+            if let Err(e) = env.call_method(
+                binder_obj,
+                "nativeInit",
+                "(J)V",
+                &[JValue::Long(token_ptr as i64)],
+            ) {
+                error!("❌ Failed to call nativeInit: {:?}", e);
+                return std::ptr::null_mut();
+            }
+
+            return binder_obj.into_raw();
+        }
+        None => {
+            error!("❌ Failed to acquire MediaProjection token");
+        }
     }
 
-    // For now, return a dummy Binder object
-    let binder_class = env.find_class("android/os/Binder").unwrap();
-    let binder_obj = env.new_object(binder_class, "()V", &[]).unwrap();
-    binder_obj.into_raw()
+    std::ptr::null_mut()
 }

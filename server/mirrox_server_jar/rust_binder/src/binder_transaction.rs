@@ -3,15 +3,15 @@ use std::{
     mem::{size_of, ManuallyDrop},
     os::unix::io::RawFd,
     ptr,
-    mem,
 };
-use nix::libc::{ioctl, c_void, geteuid};
+
+use nix::libc::{c_void, geteuid, getpid};
 use std::ffi::CString;
 
-const BC_TRANSACTION: u32 = 0x40046301; // ioctl command to perform Binder transaction
+const BC_TRANSACTION: u32 = 0x40046301;
 const BR_REPLY: u32 = 0x3;
 const BINDER_WRITE_READ: i32 = 0xC0306201u32 as i32;
-const TRANSACTION_CREATE_PROJECTION: u32 = 1; // Typically FIRST_CALL_TRANSACTION + 1
+const TRANSACTION_CREATE_PROJECTION: u32 = 1;
 
 #[repr(C)]
 struct BinderWriteRead {
@@ -50,34 +50,52 @@ struct binder_transaction_data {
 }
 
 pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<()> {
+    println!("📡 [Rust] Starting send_create_projection()");
+
     let iface = CString::new("android.media.projection.IMediaProjectionManager").unwrap();
     let pkg = CString::new("com.mirrox.server").unwrap();
 
     let mut parcel = Vec::new();
 
-    // === Parcel setup ===
-    parcel.extend_from_slice(&0x01000000u32.to_le_bytes()); // Strict mode policy
+    // === Parcel construction ===
+    parcel.extend_from_slice(&0x01000000u32.to_le_bytes()); // Strict mode header
     parcel.extend_from_slice(&(iface.to_bytes_with_nul().len() as u32).to_le_bytes());
     parcel.extend_from_slice(iface.to_bytes_with_nul());
-    parcel.resize(4 + 4 + 128, 0); // pad interface_token to 128
 
-    parcel.extend_from_slice(&(unsafe { geteuid() } as u32).to_le_bytes());
+    // Pad to 128 bytes total
+    let current_len = parcel.len();
+    if current_len < 128 {
+        parcel.resize(128, 0);
+    }
+
+    let uid = unsafe { geteuid() } as u32;
+    let pid = unsafe { getpid() } as u32;
+
+    println!("🆔 UID: {}, PID: {}", uid, pid);
+
+    parcel.extend_from_slice(&uid.to_le_bytes());
+
     parcel.extend_from_slice(&(pkg.to_bytes_with_nul().len() as u32).to_le_bytes());
     parcel.extend_from_slice(pkg.to_bytes_with_nul());
-    parcel.resize(parcel.len() + (128 - pkg.to_bytes_with_nul().len()), 0); // pad package
+
+    // Pad package name to next 4-byte boundary if needed
+    while parcel.len() % 4 != 0 {
+        parcel.push(0);
+    }
+
     parcel.extend_from_slice(&0u32.to_le_bytes()); // flags
-    parcel.extend_from_slice(&0u32.to_le_bytes()); // unused
+    parcel.extend_from_slice(&0u32.to_le_bytes()); // unused int
 
-    println!("[*] Parcel buffer size: {}", parcel.len());
+    println!("📦 Final Parcel Size: {} bytes", parcel.len());
 
-    // === Transaction ===
+    // === Transaction data ===
     let txn_data = binder_transaction_data {
         target: manager_handle as u64,
         cookie: 0,
         code: TRANSACTION_CREATE_PROJECTION,
-        flags: 0, // No TF_ONE_WAY
-        sender_pid: 0,
-        sender_euid: 0,
+        flags: 0, // no TF_ONE_WAY
+        sender_pid: pid,
+        sender_euid: uid,
         data_size: parcel.len() as u64,
         offsets_size: 0,
         data: binder_transaction_data_data {
@@ -94,7 +112,7 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<()> {
     write_buf.extend_from_slice(unsafe {
         std::slice::from_raw_parts(
             &txn_data as *const _ as *const u8,
-            mem::size_of::<binder_transaction_data>(),
+            size_of::<binder_transaction_data>(),
         )
     });
 
@@ -110,26 +128,29 @@ pub fn send_create_projection(fd: RawFd, manager_handle: u32) -> Result<()> {
         read_buffer: read_buf.as_mut_ptr() as u64,
     };
 
-    // === IOCTL ===
-    println!("[*] Sending binder transaction...");
+    println!("🚀 Sending ioctl(BINDER_WRITE_READ)...");
     let ret = unsafe { ioctl(fd, BINDER_WRITE_READ as _, &mut bwr as *mut _ as *mut c_void) };
 
     if ret < 0 {
         return Err(Error::last_os_error());
     }
 
-    println!("[+] Binder transaction sent! Read consumed: {}", bwr.read_consumed);
+    println!("✅ Transaction sent. Bytes read: {}", bwr.read_consumed);
 
-    // === Optional: Print some of the reply ===
-    println!("[>] First few reply bytes: {:02X?}", &read_buf[..std::cmp::min(32, bwr.read_consumed as usize)]);
+    if bwr.read_consumed > 0 {
+        println!(
+            "📥 First reply bytes: {:02X?}",
+            &read_buf[..std::cmp::min(bwr.read_consumed as usize, 32)]
+        );
+    }
 
     Ok(())
 }
 
-
 pub fn receive_binder_reply(fd: RawFd) -> Result<u32> {
-    let mut read_buf = vec![0u8; 4096];
+    println!("📡 [Rust] Waiting for binder reply...");
 
+    let mut read_buf = vec![0u8; 4096];
     let mut bwr = BinderWriteRead {
         write_size: 0,
         write_consumed: 0,
@@ -148,7 +169,7 @@ pub fn receive_binder_reply(fd: RawFd) -> Result<u32> {
     }
 
     let bytes_read = bwr.read_consumed as usize;
-    println!("📥 Binder reply received ({} bytes)", bytes_read);
+    println!("📩 Binder reply received ({} bytes)", bytes_read);
 
     let mut offset = 0;
     while offset + 4 <= bytes_read {
@@ -157,24 +178,23 @@ pub fn receive_binder_reply(fd: RawFd) -> Result<u32> {
 
         match cmd {
             BR_REPLY => {
-                println!("📦 Received BR_REPLY (0x{:x})", cmd);
+                println!("🎁 Received BR_REPLY");
 
                 if offset + size_of::<binder_transaction_data>() > bytes_read {
-                    return Err(Error::new(ErrorKind::UnexpectedEof, "Incomplete binder_transaction_data"));
+                    return Err(Error::new(ErrorKind::UnexpectedEof, "Incomplete BR_REPLY data"));
                 }
 
                 let txn: binder_transaction_data = unsafe {
                     ptr::read_unaligned(read_buf[offset..].as_ptr() as *const _)
                 };
-
                 offset += size_of::<binder_transaction_data>();
 
                 let ptr = unsafe { txn.data.ptr.buffer };
-                println!("📍 Returned binder object pointer: 0x{:x}", ptr);
+                println!("🔗 Returned binder object handle: 0x{:x}", ptr);
                 return Ok(ptr as u32);
             }
             unknown => {
-                println!("⚠️ Unknown binder cmd: 0x{:x}", unknown);
+                println!("⚠️ Unknown binder command: 0x{:x}", unknown);
                 break;
             }
         }
