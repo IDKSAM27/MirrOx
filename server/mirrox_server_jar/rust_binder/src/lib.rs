@@ -2,7 +2,7 @@ mod binder_utils;
 mod media_projection;
 mod binder_transaction;
 
-use jni::objects::{JClass, JObject};
+use jni::objects::{JClass, JObject, JValue};
 use jni::sys::jobject;
 use jni::JNIEnv;
 use log::{error, info};
@@ -24,30 +24,40 @@ pub extern "system" fn Java_com_mirrox_server_StartMirrox_getMediaProjectionToke
         Some(token_ptr) => {
             info!("✅ Received MediaProjection token ptr: 0x{:x}", token_ptr);
 
-            // TODO: Convert this pointer to a usable Java Binder object.
-            // For now, we still return a dummy android.os.Binder instance.
+            // Step 1: Find android.os.Binder class
+            let binder_class = match env.find_class("android/os/Binder") {
+                Ok(cls) => cls,
+                Err(e) => {
+                    error!("❌ Failed to find Binder class: {:?}", e);
+                    return std::ptr::null_mut();
+                }
+            };
+
+            // Step 2: Call nativeInit(long) on Binder object
+            let binder_obj = match env.new_object(binder_class, "()V", &[]) {
+                Ok(obj) => obj,
+                Err(e) => {
+                    error!("❌ Failed to create Binder instance: {:?}", e);
+                    return std::ptr::null_mut();
+                }
+            };
+
+            if let Err(e) = env.call_method(
+                binder_obj,
+                "nativeInit",
+                "(J)V",
+                &[JValue::Long(token_ptr as i64)],
+            ) {
+                error!("❌ Failed to call nativeInit: {:?}", e);
+                return std::ptr::null_mut();
+            }
+
+            return binder_obj.into_raw();
         }
         None => {
             error!("❌ Failed to acquire MediaProjection token");
         }
     }
 
-    // Return a dummy `new Binder()` until token can be converted properly.
-    let binder_class = match env.find_class("android/os/Binder") {
-        Ok(class) => class,
-        Err(e) => {
-            error!("Failed to find android/os/Binder class: {:?}", e);
-            return std::ptr::null_mut();
-        }
-    };
-
-    let binder_obj = match env.new_object(binder_class, "()V", &[]) {
-        Ok(obj) => obj,
-        Err(e) => {
-            error!("Failed to create Binder object: {:?}", e);
-            return std::ptr::null_mut();
-        }
-    };
-
-    binder_obj.into_raw()
+    std::ptr::null_mut()
 }
