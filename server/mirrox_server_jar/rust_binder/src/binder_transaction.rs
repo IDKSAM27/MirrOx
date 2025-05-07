@@ -7,6 +7,7 @@ use std::{
 
 use nix::libc::{c_void, geteuid, getpid};
 use std::ffi::CString;
+use libc::ioctl;
 
 const BC_TRANSACTION: u32 = 0x40046301;
 const BR_REPLY: u32 = 0x3;

@@ -2,14 +2,14 @@ mod binder_utils;
 mod media_projection;
 mod binder_transaction;
 
-use jni::objects::{JClass, JObject, JValue};
+use jni::objects::{JClass, JValue};
 use jni::sys::jobject;
 use jni::JNIEnv;
 use log::{error, info};
 
 #[no_mangle]
 pub extern "system" fn Java_com_mirrox_server_StartMirrox_getMediaProjectionTokenNative(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
 ) -> jobject {
     android_logger::init_once(
@@ -33,7 +33,7 @@ pub extern "system" fn Java_com_mirrox_server_StartMirrox_getMediaProjectionToke
                 }
             };
 
-            // Step 2: Call nativeInit(long) on Binder object
+            // Step 2: Create new Binder instance
             let binder_obj = match env.new_object(binder_class, "()V", &[]) {
                 Ok(obj) => obj,
                 Err(e) => {
@@ -42,8 +42,9 @@ pub extern "system" fn Java_com_mirrox_server_StartMirrox_getMediaProjectionToke
                 }
             };
 
+            // Step 3: Call nativeInit(long) on the Binder instance
             if let Err(e) = env.call_method(
-                binder_obj,
+                &binder_obj,
                 "nativeInit",
                 "(J)V",
                 &[JValue::Long(token_ptr as i64)],
@@ -52,12 +53,12 @@ pub extern "system" fn Java_com_mirrox_server_StartMirrox_getMediaProjectionToke
                 return std::ptr::null_mut();
             }
 
+            // Step 4: Return raw object
             return binder_obj.into_raw();
         }
         None => {
             error!("❌ Failed to acquire MediaProjection token");
+            std::ptr::null_mut()
         }
     }
-
-    std::ptr::null_mut()
 }
