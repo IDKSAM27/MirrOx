@@ -298,3 +298,9 @@ chmod +x run_mirrox.sh
 07/05/2025
 
 .sh created for dexxing the jar, ndk build and deploying.
+
+chmod + dex_jar.sh build_so.sh run_mirrox.sh
+
+./dex_jar.sh
+./build_so.sh
+./run_mirrox.sh
