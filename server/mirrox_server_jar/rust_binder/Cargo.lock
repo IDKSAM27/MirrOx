@@ -193,6 +193,7 @@ dependencies = [
  "android_logger",
  "cc",
  "jni",
+ "libc",
  "log",
  "nix",
 ]
