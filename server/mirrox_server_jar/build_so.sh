@@ -1,4 +1,5 @@
 #!/bin/bash
+# Exit script if any commands fails
 set -e
 
 # CONFIG

@@ -304,3 +304,9 @@ chmod + dex_jar.sh build_so.sh run_mirrox.sh
 ./dex_jar.sh
 ./build_so.sh
 ./run_mirrox.sh
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+08/05/2025
+
+Testing it as standalone is necessary, the binder token is being recieved.
