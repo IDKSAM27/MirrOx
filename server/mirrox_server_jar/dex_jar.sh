@@ -1,4 +1,5 @@
 #!/bin/bash
+# Below command tells shell to exit the script immediately if any command returns a non zero exit status
 set -e
 
 # CONFIG
