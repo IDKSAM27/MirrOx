@@ -315,3 +315,4 @@ Testing it as standalone is necessary, the binder token is being recieved.
 
 09/05/2025
 
+Cloned scrcpy, gonna check it out how it works.
