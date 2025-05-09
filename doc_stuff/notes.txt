@@ -310,3 +310,9 @@ chmod + dex_jar.sh build_so.sh run_mirrox.sh
 08/05/2025
 
 Testing it as standalone is necessary, the binder token is being recieved.
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+09/05/2025
+
+Cloned scrcpy, gonna check it out how it works.
