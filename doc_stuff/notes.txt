@@ -179,7 +179,7 @@ adb shell "CLASSPATH=/data/local/tmp/mirrox_server.dex.jar app_process / com.mir
 
 19/04/2025
 
-To create the directory structure .txt,
+To create the directory structure .txt, (Converting the directory structure into text `.txt` file)
 For Windows:
     tree /F /A platform_frameworks_base > base_structure.txt
     tree /F /A platform_system_core > core_structure.txt
