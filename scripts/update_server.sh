@@ -10,3 +10,18 @@ echo "Fetching latest scrcpy version..."
 
 # Fetch latest version tag using GitHub API
 LATEST_TAG = $(curl -s https://api.github.com/repos/Genymobile/scrcpy/releases/latest | grep -oP ' "tag_name": "\K(.*)(?=")')
+if [ -z "$LATEST_TAG" ]; then
+    echo "Failed to fetch latest version tag."
+    exit 1
+fi
+
+# Build URL
+JAR_URL = "https://github.com/Genymobile/scrcpy/releases/download/${LATEST_TAG}/scrcpy-server-${LATEST_TAG#v}"
+
+# Output path
+OUTPUT_JAR = "${OUTPUT_DIR}/scrcpy-server.jar
+
+echo "Downloading scrcpy-server from $JAR_URL..."
+curl -L "$JAR_URL" -o "#OUTPUT_JAR"
+
+echo "Download complete: $OUTPUT_JAR"
