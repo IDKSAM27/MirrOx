@@ -4,7 +4,12 @@ use std::io::{BufRead, BufReader};
 pub fn start_scrcpy_server() -> std::io::Result<()> {
     // Push the JAR to /data/local/tmp
     Command::new("adb")
-        .args(["Push", "server/scrcpy-server.jar", "/data/local/tmp/scrcpy-server-jar"])
+        .args(["push", "server/scrcpy-server.jar", "/data/local/tmp/scrcpy-server-jar"])
+        .status()?;
+
+    // Set up reverse tunnel (server will listen on localabstract:scrcpy)
+    Command::new("adb")
+        .args(["reverse", "localabstract:scrcpy", tcp:27183])
         .status()?;
 
     // Run it using app_process and capture stdout

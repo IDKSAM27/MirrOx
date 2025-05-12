@@ -316,3 +316,8 @@ Testing it as standalone is necessary, the binder token is being recieved.
 09/05/2025
 
 Cloned scrcpy, gonna check it out how it works.
+
+Scrcpy uses a local socket (over reverse tunnel) for communication: the server opens /data/local/tmp/scrcpy and waits for the desktop app to connect.
+Right now, you're only running the server, not the client.
+
+Solution: Add the TCP reverse tunnel + read the video stream
