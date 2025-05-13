@@ -1,37 +1,31 @@
-use std::process::{Command, Stdio};
-use std::io::{BufReader, BufRead};
+use std::process::{Command};
 
-pub fn start_scrcpy_server() -> std::io::Result<()> {
-    // Push server JAR
-    Command::new("adb")
-        .args(["push", "server/scrcpy-server.jar", "/data/local/tmp/scrcpy-server.jar"])
+pub fn adb_push(local_path: &str, remote_path: &str) -> std::io::Result<()> {
+    let status = Command::new("adb")
+        .args(["push", local_path, remote_path])
         .status()?;
 
-    // Set up reverse tunnel (server will listen on localabstract:scrcpy)
-    Command::new("adb")
-        .args(["reverse", "localabstract:scrcpy", "tcp:27183"])
-        .status()?;
-
-    // Start the server via app_process
-    let mut child = Command::new("adb")
-        .args([
-            "shell",
-            "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
-            "app_process",
-            "/",
-            "com.genymobile.scrcpy.Server",
-            // "1.25",
-            "3.2",
-            "log_level=info",
-        ])
-        .stdout(Stdio::piped())
-        .spawn()?;
-
-    let stdout = child.stdout.take().unwrap();
-    let reader = BufReader::new(stdout);
-    for line in reader.lines() {
-        println!("[scrcpy-server] {}", line?);
+    if !status.success() {
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "adb push failed"))
+    } else {
+        Ok(())
     }
+}
 
+pub fn adb_exec_shell(cmd: &str) -> std::io::Result<()> {
+    let status = Command::new("adb")
+        .args(["shell", cmd])
+        .status()?;
+
+    if !status.success() {
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "adb shell command failed"))
+    } else {
+        Ok(())
+    }
+}
+
+pub fn adb_start_server(server_jar_path: &str) -> std::io::Result<()> {
+    adb_push(server_jar_path, "/data/local/tmp/scrcpy-server.jar")?;
+    adb_exec_shell("CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 3.2")?;
     Ok(())
 }
