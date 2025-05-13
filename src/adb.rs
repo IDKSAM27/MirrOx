@@ -1,5 +1,4 @@
-use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader};
+use std::process::{Command};
 
 pub fn start_scrcpy_server() -> std::io::Result<()> {
     // Push the JAR to /data/local/tmp
