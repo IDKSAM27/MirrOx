@@ -25,7 +25,22 @@ pub fn adb_exec_shell(cmd: &str) -> std::io::Result<()> {
 }
 
 pub fn adb_start_server(server_jar_path: &str) -> std::io::Result<()> {
+    // Step 1: Push the DAMN JAR
     adb_push(server_jar_path, "/data/local/tmp/scrcpy-server.jar")?;
-    adb_exec_shell("CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 3.2")?;
+
+    // Step 2: Reverse the TCP port (for more info go the notes 10-15/05/2025)
+    adb_exec_shell("exit")?; // Trigger ADB startup if needed
+    Command::new("adb")
+        .args(["reverse", "tcp:27183", "localabstract:scrcpy"])
+        .status()?;
+
+    // Step 3: Launch server in a new thread or background process
+    Command::new("adb")
+        .args([
+            "shell",
+            "CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 3.2",
+        ])
+        .spawn()?; // Don't block
+
     Ok(())
 }
