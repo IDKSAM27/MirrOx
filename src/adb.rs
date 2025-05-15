@@ -38,7 +38,7 @@ pub fn adb_start_server(server_jar_path: &str) -> std::io::Result<()> {
     Command::new("adb")
         .args([
             "shell",
-            "CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 3.2",
+            "CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 3.2 --port=27183 --listen",
         ])
         .spawn()?; // Don't block
 
