@@ -4,9 +4,9 @@ mod tcp_client;
 fn main() {
     println!("Starting MirrOx using scrcpy-server...");
 
-    let server_jar = "server/scrcpy-server.jar";
+    // let server_jar = "server/scrcpy-server.jar";
 
-    if let Err(e) = adb::adb_start_server(server_jar) {
+    if let Err(e) = adb::start_scrcpy_server() {
         eprintln!("Failed to start scrcpy-server: {e}");
         return;
     }
