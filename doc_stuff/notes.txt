@@ -321,3 +321,18 @@ Scrcpy uses a local socket (over reverse tunnel) for communication: the server o
 Right now, you're only running the server, not the client.
 
 Solution: Add the TCP reverse tunnel + read the video stream
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+10-15/05/2025
+
+Gone through the source code of scrcpy, used copilot a bit understand the codebase,
+    In scrcpy, the desktop-side program opens a local abstract socket (@scrcpy) that the server expects to connect to. If this doesn’t
+    Happen, I get: 
+        [server] ERROR: Connection refused
+        java.io.IOException: Connection refused
+            at android.net.LocalSocketImpl.connectLocal(Native Method)
+
+I currently use:
+    CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server
+But the server needs a --socket-name argument and must be launched with a matching socket listener on the host side.
