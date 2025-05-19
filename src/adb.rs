@@ -17,7 +17,7 @@ pub fn start_scrcpy_server() -> std::io::Result<()> {
     // Start the scrcpy server with correct arguments
     // - 1.25 is the protocol version, not the scrcpy version
     // - --listen=tcp://0.0.0.0:27183 sets up the TCP listener
-    let server_command = "CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 1.25 --listen=tcp://0.0.0.0:27183";
+    let server_command = "CLASSPATH=/data/local/tmp/scrcpy-server.jar app_process / com.genymobile.scrcpy.Server 3.2 --listen=tcp://0.0.0.0:27183"; // 3.2 is the server version, it expects the client version to be same
 
     let mut child = Command::new("adb")
         .args(["shell", server_command])
