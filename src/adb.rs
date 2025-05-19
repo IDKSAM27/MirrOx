@@ -2,7 +2,7 @@ use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 
 pub fn start_scrcpy_server() -> std::io::Result<()> {
-    println!("Starting MirrOx using scrcpy-server...");
+    println!("Initializing App_process...");
 
     // Push the scrcpy-server JAR to the device
     let push_status = Command::new("adb")
