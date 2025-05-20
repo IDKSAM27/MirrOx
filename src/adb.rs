@@ -15,11 +15,11 @@ pub fn start_scrcpy_server() -> std::io::Result<()> {
         .status()?;
 
     if !push_status.success() {
-        eprintln!("❌ Failed to push scrcpy-server JAR to device");
+        eprintln!("[*] Failed to push scrcpy-server JAR to device");
         return Err(std::io::Error::new(std::io::ErrorKind::Other, "adb push failed"));
     }
 
-    println!("✅ scrcpy-server pushed to device");
+    println!("[*] scrcpy-server pushed to device");
 
     // Start the scrcpy server via adb shell
     let server_command = format!(
