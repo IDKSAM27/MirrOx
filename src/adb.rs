@@ -2,24 +2,24 @@ use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 
 // Constants
-const SCRCPY_SERVER_VERSION: &str = "v3.2";
+const SCRCPY_SERVER_VERSION: &str = "3.2";
 const SCRCPY_SERVER_JAR_PATH: &str = "/data/local/tmp/scrcpy-server-v3.2.jar";
 
 pub fn start_scrcpy_server() -> std::io::Result<()> {
     println!("Initializing scrcpy server...");
 
     // Push the scrcpy-server JAR to the device
-    let local_jar_path = format!("server/scrcpy-server-{}", SCRCPY_SERVER_VERSION);
+    let local_jar_path = format!("server/scrcpy-server-v{}", SCRCPY_SERVER_VERSION);
     let push_status = Command::new("adb")
         .args(["push", &local_jar_path, SCRCPY_SERVER_JAR_PATH])
         .status()?;
 
     if !push_status.success() {
-        eprintln!("[*] Failed to push scrcpy-server JAR to device");
+        eprintln!("❌ Failed to push scrcpy-server JAR to device");
         return Err(std::io::Error::new(std::io::ErrorKind::Other, "adb push failed"));
     }
 
-    println!("[*] scrcpy-server pushed to device");
+    println!("✅ scrcpy-server pushed to device");
 
     // Start the scrcpy server via adb shell
     let server_command = format!(
