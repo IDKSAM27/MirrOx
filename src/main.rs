@@ -2,19 +2,17 @@ mod adb;
 mod tcp_client;
 
 fn main() {
-    println!("Starting MirrOx using scrcpy-server...");
-
-    // let server_jar = "server/scrcpy-server.jar";
+    println!("Starting MirrOx Server...");
 
     if let Err(e) = adb::start_scrcpy_server() {
-        eprintln!("Failed to start scrcpy-server: {e}");
+        eprintln!("Failed to start server: {e}");
         return;
     }
 
-    println!("Connecting to scrcpy server on localhost:27183...");
+    println!("Connecting to server on localhost:27183...");
 
     match tcp_client::connect_to_scrcpy() {
-        Ok(_) => println!("Connected to scrcpy-server successfully."),
-        Err(e) => eprintln!("Failed to connect to scrcpy-server: {e}"),
+        Ok(_) => println!("[*] Connected to server successfully."),
+        Err(e) => eprintln!("Failed to connect to server: {e}"),
     }
 }
