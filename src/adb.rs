@@ -1,17 +1,16 @@
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 
-// Constants
-const SCRCPY_SERVER_VERSION: &str = "3.2";
-const SCRCPY_SERVER_JAR_PATH: &str = "/data/local/tmp/scrcpy-server-v3.2.jar";
-
-pub fn start_scrcpy_server() -> std::io::Result<()> {
+pub fn start_scrcpy_server(version: &str) -> std::io::Result<()> {
     println!("Initializing server...");
 
     // Push the scrcpy-server JAR to the device
-    let local_jar_path = format!("server/scrcpy-server-v{}", SCRCPY_SERVER_VERSION);
+    let jar_name = format!("scrcpy-server-{}", version);
+    let local_path = format!("server/{}", jar_name);
+    let device_path = format!("/data/local/tmp/{}.jar", jar_name);
+
     let push_status = Command::new("adb")
-        .args(["push", &local_jar_path, SCRCPY_SERVER_JAR_PATH])
+        .args(["push", &local_path, &device_path])
         .status()?;
 
     if !push_status.success() {
@@ -38,8 +37,8 @@ pub fn start_scrcpy_server() -> std::io::Result<()> {
     // Start the scrcpy server via adb shell
     let server_command = format!(
         "CLASSPATH={} app_process / com.genymobile.scrcpy.Server {} scid=12345678 log_level=info audio=false max_size=1920",
-        SCRCPY_SERVER_JAR_PATH,
-        SCRCPY_SERVER_VERSION
+        device_path,
+        version
     );
 
     let mut child = Command::new("adb")

@@ -1,10 +1,14 @@
 mod adb;
+mod utils;
 mod tcp_client;
 
 fn main() {
     println!("Starting MirrOx Server...");
 
-    if let Err(e) = adb::start_scrcpy_server() {
+    let version = utils::get_scrcpy_server_version()
+        .expect("[*] Could not read server version from server/version.txt");
+
+    if let Err(e) = adb::start_scrcpy_server(&version) {
         eprintln!("Failed to start server: {e}");
         return;
     }

@@ -11,6 +11,13 @@ OUT_PATH="$OUT_DIR/scrcpy-server-$LATEST_TAG"
 mkdir -p "$OUT_DIR"
 curl -sSL -o "$OUT_PATH" "$SERVER_URL"
 
+# Check if file exists and is not empty
+if [ ! -s "$OUT_PATH" ]; then
+    echo "❌ Download failed: File is empty or missing"
+    rm -f "$OUT_PATH"
+    exit 1
+fi
+
 # Save version to file
 echo "$LATEST_TAG" > "$OUT_DIR/version.txt"
 
