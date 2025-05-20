@@ -351,3 +351,6 @@ I guess we don't need .jar file, rather than that we could simply use scrcpy-ser
 
 Before running, this is required, it sets the tcp to 27183: 
     adb forward tcp:27183 localabstract:scrcpy
+
+update_server.sh :
+    fetches the github api for latest scrcpy-server version and downloads it, also saves the version number to version.txt
