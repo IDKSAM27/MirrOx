@@ -9,9 +9,9 @@ OUT_DIR="server"
 OUT_PATH="$OUT_DIR/scrcpy-server-$LATEST_TAG"
 
 mkdir -p "$OUT_DIR"
-curl -Lo "$OUT_PATH" "$SERVER_URL"
+curl -sSL -o "$OUT_PATH" "$SERVER_URL"
 
 # Save version to file
 echo "$LATEST_TAG" > "$OUT_DIR/version.txt"
 
-echo "✅ Downloaded scrcpy-server-$LATEST_TAG"
+echo "[*] Downloaded scrcpy-server-$LATEST_TAG"
