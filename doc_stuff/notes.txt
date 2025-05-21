@@ -347,6 +347,8 @@ Validation of the scrcpy version: (in the server/ dir)
 
 I guess we don't need .jar file, rather than that we could simply use scrcpy-server-v3.2, rename it while pushing the client device.
 
+---------------------------------------------------------------------------------------------------------------------------------
+
 20/05/2025
 
 Before running, this is required, it sets the tcp to 27183: 
@@ -354,3 +356,5 @@ Before running, this is required, it sets the tcp to 27183:
 
 update_server.sh :
     fetches the github api for latest scrcpy-server version and downloads it, also saves the version number to version.txt
+
+---------------------------------------------------------------------------------------------------------------------------------
