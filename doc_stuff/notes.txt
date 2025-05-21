@@ -358,3 +358,11 @@ update_server.sh :
     fetches the github api for latest scrcpy-server version and downloads it, also saves the version number to version.txt
 
 ---------------------------------------------------------------------------------------------------------------------------------
+
+21/05/2025
+
+The video.rs will:
+    Connect to scrcpy server
+    Read bytes
+    Attempt to decode as H.264
+    Print when a frame is decoded
