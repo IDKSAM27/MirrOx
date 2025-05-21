@@ -11,3 +11,5 @@ tokio = { version = "1", features = ["full"] }
 warp = "0.3"
 futures-util = "0.3"
 sdl2 = "0.35"
+ffmpeg-next = "6.0"
+pixels = "0.12"
