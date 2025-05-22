@@ -366,3 +366,9 @@ The video.rs will:
     Read bytes
     Attempt to decode as H.264
     Print when a frame is decoded
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+22/05/2025
+
+Multithreading to be used for decoding and rendering
