@@ -1,6 +1,7 @@
 mod adb;
 mod utils;
 mod tcp_client;
+mod video;
 
 fn main() {
     println!("Starting MirrOx Server...");
@@ -19,4 +20,6 @@ fn main() {
         Ok(_) => println!("[*] Connected to server successfully."),
         Err(e) => eprintln!("Failed to connect to server: {e}"),
     }
+
+    video::start_video_streaming().unwrap();
 }
