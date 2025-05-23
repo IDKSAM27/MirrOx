@@ -386,7 +386,7 @@ Install vcpkg:
 Install FFmpeg:
     .\vcpkg.exe install ffmpeg:x64-windows
 
-Set VCPKG_ROOT and enable integration:
+Set VCPKG_ROOT and enable integration with MSVC:
     $env:VCPKG_ROOT = "C:\path\to\vcpkg"
     .\vcpkg integrate install
 
