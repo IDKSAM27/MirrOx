@@ -372,3 +372,23 @@ The video.rs will:
 22/05/2025
 
 Multithreading to be used for decoding and rendering
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+23/05/2025
+
+Using precompiled FFmpeg with vcpkg
+Install vcpkg:
+    git clone https://github.com/microsoft/vcpkg
+    cd vcpkg
+    .\bootstrap-vcpkg.bat
+
+Install FFmpeg:
+    .\vcpkg.exe install ffmpeg:x64-windows
+
+Set VCPKG_ROOT and enable integration:
+    $env:VCPKG_ROOT = "C:\path\to\vcpkg"
+    .\vcpkg integrate install
+
+Rebuild:
+    cargo build
