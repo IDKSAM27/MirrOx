@@ -400,3 +400,8 @@ Rebuild:
 FFmpeg 7 version is not "good" according to some Rust documentation.
 Gotta downgrade to somewhere version 6.1.1 from vcpkg
 
+I'll use:
+    git checkout 'commit-hash'
+use:
+    git log ports/ffmpeg 
+to check for 6.1.1 release ready commit.
