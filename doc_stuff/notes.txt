@@ -400,6 +400,16 @@ Rebuild:
 FFmpeg 7 version is not "good" according to some Rust documentation.
 Gotta downgrade to somewhere version 6.1.1 from vcpkg
 
+Check FFmpeg Version:
+    vcpkg list | findstr ffmpeg
+
+Remove FFmpeg 7 from vcpkg:
+    vcpkg remove ffmpeg:x64-windows
+also (if any other installation):
+    vcpkg remove ffmpeg:x86-windows
+    vcpkg remove ffmpeg:x64-windows-static
+
+
 I'll use:
     git checkout 'commit-hash'
 use:
