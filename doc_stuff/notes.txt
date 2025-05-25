@@ -395,7 +395,7 @@ Rebuild:
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
-24/05/2025
+24-25/05/2025
 
 FFmpeg 7 version is not "good" according to some Rust documentation.
 Gotta downgrade to somewhere version 6.1.1 from vcpkg
