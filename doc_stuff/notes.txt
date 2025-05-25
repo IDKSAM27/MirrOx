@@ -395,13 +395,47 @@ Rebuild:
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
-24/05/2025
+24-25/05/2025
 
 FFmpeg 7 version is not "good" according to some Rust documentation.
 Gotta downgrade to somewhere version 6.1.1 from vcpkg
 
+Check FFmpeg Version:
+    vcpkg list | findstr ffmpeg
+
+Remove FFmpeg 7 from vcpkg:
+    vcpkg remove ffmpeg:x64-windows
+also (if any other installation):
+    vcpkg remove ffmpeg:x86-windows
+    vcpkg remove ffmpeg:x64-windows-static
+
+Checkout a 6.1.1 version:
+    git log ports/ffmpeg
+
 I'll use:
     git checkout 'commit-hash'
-use:
-    git log ports/ffmpeg 
-to check for 6.1.1 release ready commit.
+
+Now bootstrap vcpkg again (after checking out the older state):
+    .\bootstrap-vcpkg.bat
+
+Install FFmpeg 6.1.1:
+    vcpkg install ffmpeg:x64-windows
+
+-----> ERROR!!!!!! (obviously)
+
+        you need to make sure the Desktop C++ Development workload is installed — specifically with:
+            MSVC toolchain (e.g., MSVC v143)
+            Windows SDK (e.g., Windows 10 SDK or Windows 11 SDK)
+        
+        (I'll do install these directly from Visual Studio Installer)
+
+        Workloads tab:
+            -> Desktop development with C++
+
+        Compilers, build tools, and runtimes:
+            -> MSVC v143 - VS 2022 C++ x64/x86 build tools
+            -> Windows 10 SDK (10.0.xxxxx)
+            -> (optional) Windows 11 SDK
+
+        SDKs and libraries:
+            -> C++ CMake tools for Windows
