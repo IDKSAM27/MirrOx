@@ -409,9 +409,9 @@ also (if any other installation):
     vcpkg remove ffmpeg:x86-windows
     vcpkg remove ffmpeg:x64-windows-static
 
+Checkout a 6.1.1 version:
+    git log ports/ffmpeg
 
 I'll use:
     git checkout 'commit-hash'
-use:
-    git log ports/ffmpeg 
-to check for 6.1.1 release ready commit.
+
