@@ -1,3 +1,6 @@
+#### IMP: This is not relevant to the project, this is just some extra info I collected in the journey.
+
+
 Binder is Android's low-level, high-performance IPC (Inter-Process Communication) mechanism. 
 It's what lets one process talk to another—like a client app talking to system services.
 
