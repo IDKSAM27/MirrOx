@@ -439,3 +439,10 @@ Install FFmpeg 6.1.1:
 
         SDKs and libraries:
             -> C++ CMake tools for Windows
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+26/05/2025
+
+There is something wrong with the 6.1.1 ffmpeg installation, it is looking for some other compiler and build tools version.
+I'll to use 7.1.1 FFmpeg from vcpkg. Let's see.
