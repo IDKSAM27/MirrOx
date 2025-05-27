@@ -1,41 +1,45 @@
-use std::net::TcpStream;
-use std::io::{Read};
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::thread;
 use anyhow::Result;
 
-use ffmpeg_next::{decoder::Video, format, frame, software::scaling, util::format::pixel};
+use ffmpeg_next::{
+    codec, format, frame,
+    software::scaling::{self, context::Context as Scaler},
+    util::format::pixel,
+};
 
-use sdl2::{pixels::PixelFormatEnum, rect::Rect};
+use sdl2::{pixels::PixelFormatEnum, rect::Rect, event::Event};
 
 pub fn start_video_streaming() -> Result<()> {
-    // Connect to the scrcpy server TCP stream
-    let mut stream = TcpStream::connect("127.0.0.1:27183")?;
-    stream.set_nonblocking(true)?;
+    // Initialize FFmpeg
+    ffmpeg_next::init().unwrap();
 
-    println!("[MirrOx] Connected to server!");
+    // Open input from TCP stream
+    let mut ictx = format::input("tcp://127.0.0.1:27183").unwrap();
+    let input = ictx.streams().best(ffmpeg_next::media::Type::Video).unwrap();
+    let video_stream_index = input.index();
+
+    let context_decoder = codec::context::Context::from_parameters(input.parameters()).unwrap();
+    let decoder = context_decoder.decoder().video().unwrap();
+    let decoder_params = (
+        decoder.format(),
+        decoder.width(),
+        decoder.height(),
+    );
 
     let (frame_tx, frame_rx): (Sender<frame::Video>, Receiver<frame::Video>) = mpsc::channel();
 
-    // Spawn thread for reading and decoding video
+    // Move decoder into thread
     thread::spawn(move || {
-        let _ = ffmpeg_next::init();
+        let mut decoder = decoder;
 
-        // Guess format from raw input (scrcpy sends an MPEG-TS stream)
-        let mut ictx = format::input(&mut stream).expect("Failed to open input format");
-        let input = ictx.streams().best(ffmpeg_next::media::Type::Video).unwrap();
-        let video_stream_index = input.index();
-
-        let context_decoder = ffmpeg_next::codec::context::Context::from_parameters(input.parameters()).unwrap();
-        let mut decoder = context_decoder.decoder().video().unwrap();
-
-        let mut scaler = scaling::Context::get(
-            decoder.format(),
-            decoder.width(),
-            decoder.height(),
+        let mut scaler = Scaler::get(
+            decoder_params.0,
+            decoder_params.1,
+            decoder_params.2,
             pixel::Pixel::RGB24,
-            decoder.width(),
-            decoder.height(),
+            decoder_params.1,
+            decoder_params.2,
             scaling::Flags::BILINEAR,
         ).unwrap();
 
@@ -43,15 +47,26 @@ pub fn start_video_streaming() -> Result<()> {
 
         for (stream, packet) in ictx.packets() {
             if stream.index() == video_stream_index {
-                decoder.decode(&packet, &mut decoded).unwrap();
-                let mut rgb_frame = frame::Video::empty();
-                scaler.run(&decoded, &mut rgb_frame).unwrap();
-                frame_tx.send(rgb_frame).unwrap();
+                if decoder.send_packet(&packet).is_ok() {
+                    while decoder.receive_frame(&mut decoded).is_ok() {
+                        let mut rgb_frame = frame::Video::empty();
+                        scaler.run(&decoded, &mut rgb_frame).unwrap();
+                        frame_tx.send(rgb_frame).unwrap();
+                    }
+                }
             }
+        }
+
+        // Flush decoder
+        decoder.send_eof().ok();
+        while decoder.receive_frame(&mut decoded).is_ok() {
+            let mut rgb_frame = frame::Video::empty();
+            scaler.run(&decoded, &mut rgb_frame).unwrap();
+            frame_tx.send(rgb_frame).unwrap();
         }
     });
 
-    // SDL2 window + renderer
+    // SDL2 setup
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem
@@ -64,7 +79,16 @@ pub fn start_video_streaming() -> Result<()> {
     let mut canvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
 
+    let mut event_pump = sdl_context.event_pump().unwrap();
+
     'running: loop {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. } => break 'running Ok(()),
+                _ => {}
+            }
+        }
+
         if let Ok(frame) = frame_rx.try_recv() {
             let (width, height) = (frame.width(), frame.height());
 
@@ -81,7 +105,6 @@ pub fn start_video_streaming() -> Result<()> {
             canvas.present();
         }
 
-        // TODO: Add SDL2 event pump and exit condition
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
 }
