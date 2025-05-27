@@ -446,6 +446,6 @@ Install FFmpeg 6.1.1:
 
 There is something wrong with the 6.1.1 ffmpeg installation, it is looking for some other compiler and build tools version.
 
-Downloaded the shared (dev) version of ffmpeg 7.1.0 (as it is supported by ffmpeg-next = 7.1.0)
-
 --> All the above mentioned ways to install ffmpeg was inefficient.
+
+Downloaded the shared (dev) version of ffmpeg 7.1.0 (as it is supported by ffmpeg-next = 7.1.0)

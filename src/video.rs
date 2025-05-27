@@ -22,7 +22,7 @@ pub fn start_video_streaming() -> Result<()> {
         let _ = ffmpeg_next::init();
 
         // Guess format from raw input (scrcpy sends an MPEG-TS stream)
-        let mut ictx = format::input(&mut stream).expect("Failed to open input format");
+        let mut ictx = format::input(&mut stream).expect("Failed to open input format"); // TcpStream issue, required some kind of bound. NOT SURE.
         let input = ictx.streams().best(ffmpeg_next::media::Type::Video).unwrap();
         let video_stream_index = input.index();
 
@@ -43,7 +43,7 @@ pub fn start_video_streaming() -> Result<()> {
 
         for (stream, packet) in ictx.packets() {
             if stream.index() == video_stream_index {
-                decoder.decode(&packet, &mut decoded).unwrap();
+                decoder.decode(&packet, &mut decoded).unwrap(); // 7.1.0 doesn't have 'decode' ig
                 let mut rgb_frame = frame::Video::empty();
                 scaler.run(&decoded, &mut rgb_frame).unwrap();
                 frame_tx.send(rgb_frame).unwrap();
