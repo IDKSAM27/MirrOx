@@ -1,5 +1,4 @@
 use std::{
-    io::Read,
     net::TcpStream,
     sync::mpsc::{self, Receiver, Sender},
     thread,
@@ -8,7 +7,7 @@ use std::{
 
 use anyhow::Result;
 use ffmpeg_next::{
-    codec, decoder, format, frame,
+    codec, format, frame,
     software::scaling::{context::Context as Scaler, flag::Flags},
     util::format::pixel,
 };
