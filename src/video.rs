@@ -20,17 +20,18 @@ pub fn start_video_streaming() -> Result<()> {
     let video_stream_index = input.index();
 
     let context_decoder = codec::context::Context::from_parameters(input.parameters()).unwrap();
+    let decoder = context_decoder.decoder().video().unwrap();
     let decoder_params = (
-        context_decoder.format(),
-        context_decoder.width(),
-        context_decoder.height(),
+        decoder.format(),
+        decoder.width(),
+        decoder.height(),
     );
 
     let (frame_tx, frame_rx): (Sender<frame::Video>, Receiver<frame::Video>) = mpsc::channel();
 
-    // Move decoder context into thread
+    // Move decoder into thread
     thread::spawn(move || {
-        let mut decoder = context_decoder.decoder().video().unwrap();
+        let mut decoder = decoder;
 
         let mut scaler = Scaler::get(
             decoder_params.0,
