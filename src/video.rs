@@ -1,15 +1,21 @@
-use std::net::TcpStream;
-use std::io::{Read};
-use std::sync::mpsc::{self, Sender, Receiver};
-use std::thread;
-use anyhow::Result;
+use std::{
+    io::Read,
+    net::TcpStream,
+    sync::mpsc::{self, Receiver, Sender},
+    thread,
+    time::Duration,
+};
 
-use ffmpeg_next::{decoder::Video, format, frame, software::scaling, util::format::pixel};
+use anyhow::Result;
+use ffmpeg_next::{
+    codec, decoder, format, frame,
+    software::scaling::{context::Context as Scaler, flag::Flags},
+    util::format::pixel,
+};
 
 use sdl2::{pixels::PixelFormatEnum, rect::Rect};
 
 pub fn start_video_streaming() -> Result<()> {
-    // Connect to the scrcpy server TCP stream
     let mut stream = TcpStream::connect("127.0.0.1:27183")?;
     stream.set_nonblocking(true)?;
 
@@ -19,41 +25,73 @@ pub fn start_video_streaming() -> Result<()> {
 
     // Spawn thread for reading and decoding video
     thread::spawn(move || {
-        let _ = ffmpeg_next::init();
+        if ffmpeg_next::init().is_err() {
+            eprintln!("Failed to initialize FFmpeg");
+            return;
+        }
 
-        // Guess format from raw input (scrcpy sends an MPEG-TS stream)
-        let mut ictx = format::input(&mut stream).expect("Failed to open input format"); // TcpStream issue, required some kind of bound. NOT SURE.
-        let input = ictx.streams().best(ffmpeg_next::media::Type::Video).unwrap();
+        let mut ictx = match format::input(&mut stream) {
+            Ok(ctx) => ctx,
+            Err(e) => {
+                eprintln!("Could not open input: {}", e);
+                return;
+            }
+        };
+
+        let input = match ictx.streams().best(ffmpeg_next::media::Type::Video) {
+            Some(s) => s,
+            None => {
+                eprintln!("No video stream found");
+                return;
+            }
+        };
+
         let video_stream_index = input.index();
-
-        let context_decoder = ffmpeg_next::codec::context::Context::from_parameters(input.parameters()).unwrap();
+        let context_decoder =
+            codec::context::Context::from_parameters(input.parameters()).unwrap();
         let mut decoder = context_decoder.decoder().video().unwrap();
 
-        let mut scaler = scaling::Context::get(
+        let mut scaler = Scaler::get(
             decoder.format(),
             decoder.width(),
             decoder.height(),
             pixel::Pixel::RGB24,
             decoder.width(),
             decoder.height(),
-            scaling::Flags::BILINEAR,
-        ).unwrap();
+            Flags::BILINEAR,
+        )
+        .unwrap();
 
         let mut decoded = frame::Video::empty();
 
         for (stream, packet) in ictx.packets() {
             if stream.index() == video_stream_index {
-                decoder.decode(&packet, &mut decoded).unwrap(); // 7.1.0 doesn't have 'decode' ig
+                if let Err(e) = decoder.decode(&packet, &mut decoded) {
+                    eprintln!("Decode error: {}", e);
+                    continue;
+                }
+
                 let mut rgb_frame = frame::Video::empty();
                 scaler.run(&decoded, &mut rgb_frame).unwrap();
                 frame_tx.send(rgb_frame).unwrap();
             }
         }
+
+        // Flush decoder
+        if let Err(e) = decoder.send_eof() {
+            eprintln!("Error sending EOF: {}", e);
+        }
+        while decoder.receive_frame(&mut decoded).is_ok() {
+            let mut rgb_frame = frame::Video::empty();
+            scaler.run(&decoded, &mut rgb_frame).unwrap();
+            frame_tx.send(rgb_frame).unwrap();
+        }
     });
 
-    // SDL2 window + renderer
+    // SDL2 setup
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
+
     let window = video_subsystem
         .window("MirrOx", 800, 600)
         .position_centered()
@@ -63,8 +101,17 @@ pub fn start_video_streaming() -> Result<()> {
 
     let mut canvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
+    let mut event_pump = sdl_context.event_pump().unwrap();
 
     'running: loop {
+        for event in event_pump.poll_iter() {
+            use sdl2::event::Event;
+            match event {
+                Event::Quit { .. } => break 'running,
+                _ => {}
+            }
+        }
+
         if let Ok(frame) = frame_rx.try_recv() {
             let (width, height) = (frame.width(), frame.height());
 
@@ -77,11 +124,14 @@ pub fn start_video_streaming() -> Result<()> {
                 .unwrap();
 
             canvas.clear();
-            canvas.copy(&texture, None, Some(Rect::new(0, 0, width, height))).unwrap();
+            canvas
+                .copy(&texture, None, Some(Rect::new(0, 0, width, height)))
+                .unwrap();
             canvas.present();
         }
 
-        // TODO: Add SDL2 event pump and exit condition
-        std::thread::sleep(std::time::Duration::from_millis(1));
+        thread::sleep(Duration::from_millis(1));
     }
+
+    // Ok(())
 }
