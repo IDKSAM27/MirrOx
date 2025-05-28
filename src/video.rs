@@ -16,6 +16,8 @@ pub fn start_video_streaming() -> Result<()> {
 
     // Open input from TCP stream
 
+
+    // TODO: Implement some kind of server header parsing, it is messing up the expected return to the sdl2
     let mut ictx = match format::input("tcp://127.0.0.1:27183") {
         Ok(ctx) => ctx,
         Err(e) => {
@@ -24,7 +26,7 @@ pub fn start_video_streaming() -> Result<()> {
     }
     };
 
-    
+
     let input = ictx.streams().best(ffmpeg_next::media::Type::Video).unwrap();
     let video_stream_index = input.index();
 
