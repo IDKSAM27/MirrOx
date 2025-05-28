@@ -1,3 +1,5 @@
 target/
 *.pdb
 *.exe
+.idea
+.vscode
