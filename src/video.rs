@@ -15,8 +15,16 @@ pub fn start_video_streaming() -> Result<()> {
     ffmpeg_next::init().unwrap();
 
     // Open input from TCP stream
-    // TODO: server gives the data with some header, I'll have to remove it.
-    let mut ictx = format::input("tcp://127.0.0.1:27183").unwrap();
+
+    let mut ictx = match format::input("tcp://127.0.0.1:27183") {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            eprintln!("[MirrOx] FFmpeg failed to open stream: {e}");
+            return Err(anyhow::anyhow!("FFmpeg input error"));
+    }
+    };
+
+    
     let input = ictx.streams().best(ffmpeg_next::media::Type::Video).unwrap();
     let video_stream_index = input.index();
 
