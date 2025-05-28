@@ -135,7 +135,7 @@ With JNI, we can directly call IMediaProjectionManager.createProjection() using 
 
 
 Step 1: Native JNI Library (libmirrox.so)
-    We’ll write a small C/C++ file that:
+    We’ll write a small C file that:
 
     Gets the IMediaProjectionManager service.
 
@@ -462,4 +462,8 @@ The scrcpy-server sends a protocol header before the actual video data - this is
         -> n bytes: device name (UTF-8)
         -> 4 bytes: width
         -> 4 bytes: height
-        -> Start of H.264 stream...
+        -> Start of H.264 stream
+
+SO, This is what I need to do now, (THE ACTUAL HARD STUFF)
+-> Read that header from the TcpStream
+-> Then pass only the H.264 video part to FFmpeg
