@@ -14,3 +14,4 @@ ffmpeg-next = "7.1.0"
 # sdl2 = { version = "0.35", features = ["image"] }
 anyhow = "1.0"
 sdl2 = "*"
+os_pipe = "1.1" # uses Unix-specific FD's
