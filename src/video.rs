@@ -111,7 +111,7 @@ pub fn start_video_stream() -> Result<()> {
                     .map_err(|e| anyhow::anyhow!("{}", e))?;
 
                 canvas.clear();
-                canvas.copy(&texture, None, None)?;
+                canvas.copy(&texture, None, None).map_err(|e| anyhow::anyhow!("{}", e))?;
                 canvas.present();
 
                 use sdl2::event::Event;
