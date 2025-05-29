@@ -1,65 +1,59 @@
-use std::fs::File;
-use std::io::{Read, Write};
-use std::net::TcpStream;
-use std::thread;
-use std::time::Duration;
-
 use anyhow::{Context, Result};
 use ffmpeg_next::{
     codec,
     decoder::Video as VideoDecoder,
     format,
-    format::Pixel,
-    frame,
+    frame::Video,
     software::scaling::{context::Context as Scaler, flag::Flags},
-    util::rational::Rational,
+    util::format::pixel::Pixel,
 };
-use sdl2::{event::Event, pixels::PixelFormatEnum};
+use sdl2::{pixels::PixelFormatEnum, rect::Rect};
+use std::{
+    io::Read,
+    process::{Command, Stdio},
+    thread,
+};
 
 pub fn start_video_stream() -> Result<()> {
-    println!("[*] Connecting to server on localhost:27183...");
-    let mut stream = TcpStream::connect("127.0.0.1:27183")
-        .context("Failed to connect to scrcpy server")?;
-    stream.set_nonblocking(true)?;
+    ffmpeg_next::init().context("Failed to initialize FFmpeg")?;
 
-    println!("[MirrOx] Connected to server!");
+    // Launch scrcpy-server on the Android device
+    let mut adb_child = Command::new("adb")
+        .args(["exec-out", "scrcpy-server"])
+        .stdout(Stdio::piped())
+        .spawn()
+        .context("Failed to launch scrcpy-server via ADB")?;
 
-    // Create a temp file for FFmpeg to read
+    let stdout = adb_child
+        .stdout
+        .take()
+        .context("Failed to capture stdout from ADB child")?;
+
+    // Create a temp file for FFmpeg to read from
     let mut temp_file = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
+    let temp_path = temp_file.path().to_path_buf();
 
-    // Spawn a thread to read bytes from the socket and write to temp file
-    let mut cloned_stream = stream.try_clone().context("Failed to clone TCP stream")?;
-    let mut temp_path = temp_file.path().to_path_buf();
-    thread::spawn(move || {
-        let mut buffer = [0u8; 4096];
-        while let Ok(n) = cloned_stream.read(&mut buffer) {
-            if n == 0 {
-                break;
-            }
-            if let Err(e) = temp_file.write_all(&buffer[..n]) {
-                eprintln!("[MirrOx] Write error: {e:?}");
-                break;
-            }
+    // Thread: copy ADB stdout to temp file
+    thread::spawn({
+        let mut reader = stdout;
+        let mut writer = temp_file;
+        move || {
+            let _ = std::io::copy(&mut reader, &mut writer);
         }
     });
 
-    // Wait a bit to fill some buffer (you can tune this)
-    thread::sleep(Duration::from_millis(1000));
+    // Wait a bit to buffer enough data
+    thread::sleep(std::time::Duration::from_secs(1));
 
-    // Now initialize FFmpeg format context from temp file
-    ffmpeg_next::init().context("Failed to initialize FFmpeg")?;
-    let mut ictx = format::input(&temp_path).context("FFmpeg input error")?;
-
-    let input_stream = ictx
+    let mut ictx = format::input(&temp_path).context("Failed to open input via FFmpeg")?;
+    let input = ictx
         .streams()
         .best(ffmpeg_next::media::Type::Video)
         .context("Couldn't find best video stream")?;
-    let video_stream_index = input_stream.index();
-    let codec_params = input_stream.parameters();
-    let decoder = codec::Context::from_parameters(codec_params)?
-        .decoder()
-        .video()
-        .context("Couldn't get video decoder")?;
+
+    let video_stream_index = input.index();
+    let context_decoder = codec::context::Context::from_parameters(input.parameters())?;
+    let mut decoder = context_decoder.decoder().video()?;
 
     let mut scaler = Scaler::get(
         decoder.format(),
@@ -69,57 +63,74 @@ pub fn start_video_stream() -> Result<()> {
         decoder.width(),
         decoder.height(),
         Flags::BILINEAR,
-    )
-    .context("Couldn't initialize scaler")?;
+    )?;
 
-    // SDL2 setup
-    let sdl = sdl2::init().map_err(|e| anyhow::anyhow!(e))?;
-    let video_subsystem = sdl.video().map_err(|e| anyhow::anyhow!(e))?;
+    let sdl = sdl2::init().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let video_subsystem = sdl.video().map_err(|e| anyhow::anyhow!("{}", e))?;
     let window = video_subsystem
         .window("MirrOx", decoder.width() as u32, decoder.height() as u32)
         .position_centered()
         .build()
-        .map_err(|e| anyhow::anyhow!(e))?;
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let mut canvas = window
         .into_canvas()
         .accelerated()
         .build()
-        .map_err(|e| anyhow::anyhow!(e))?;
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
     let texture_creator = canvas.texture_creator();
     let mut texture = texture_creator
         .create_texture_streaming(
             PixelFormatEnum::RGB24,
-            decoder.width(),
-            decoder.height(),
+            decoder.width() as u32,
+            decoder.height() as u32,
         )
-        .map_err(|e| anyhow::anyhow!(e))?;
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let mut event_pump = sdl.event_pump().map_err(|e| anyhow::anyhow!(e))?;
-    let mut decoded = frame::Video::empty();
+    let mut event_pump = sdl.event_pump().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    let mut receive_and_render = |frame: &Video| -> Result<()> {
+        let mut rgb_frame = Video::empty();
+        scaler.run(frame, &mut rgb_frame)?;
+
+        texture
+            .with_lock(None, |buffer, pitch| {
+                let data = rgb_frame.data(0);
+                let linesize = rgb_frame.stride(0);
+                for y in 0..decoder.height() {
+                    let y_usize = y as usize;
+                    let src_start = y_usize * linesize as usize;
+                    let dst_start = y_usize * pitch as usize;
+                    let row_width = decoder.width() as usize * 3;
+                    let src = &data[src_start..src_start + row_width];
+                    let dst = &mut buffer[dst_start..dst_start + row_width];
+                    dst.copy_from_slice(src);
+                }
+            })
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        canvas.clear();
+        canvas
+            .copy(&texture, None, None)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        canvas.present();
+        Ok(())
+    };
+
     for (stream, packet) in ictx.packets() {
         if stream.index() == video_stream_index {
             decoder.send_packet(&packet)?;
+
+            let mut decoded = Video::empty();
             while decoder.receive_frame(&mut decoded).is_ok() {
-                let mut rgb_frame = frame::Video::empty();
-                scaler.run(&decoded, &mut rgb_frame)?;
+                receive_and_render(&decoded)?;
 
-                texture.with_lock(None, |buffer, pitch| {
-                    let data = rgb_frame.data(0);
-                    let linesize = rgb_frame.linesize(0);
-                    for y in 0..decoder.height() {
-                        let src = &data[(y * linesize) as usize..(y * linesize + decoder.width() * 3) as usize];
-                        let dst = &mut buffer[(y * pitch) as usize..(y * pitch + decoder.width() * 3) as usize];
-                        dst.copy_from_slice(src);
+                for event in event_pump.poll_iter() {
+                    use sdl2::event::Event;
+                    if let Event::Quit { .. } = event {
+                        return Ok(());
                     }
-                })?;
-
-                canvas.clear();
-                canvas.copy(&texture, None, None)?;
-                canvas.present();
-
-                if let Some(Event::Quit { .. }) = event_pump.poll_event() {
-                    return Ok(());
                 }
             }
         }

@@ -21,5 +21,5 @@ fn main() {
         Err(e) => eprintln!("Failed to connect to server: {e}"),
     }
 
-    video::start_video_streaming().unwrap();
+    video::start_video_stream().unwrap();
 }
