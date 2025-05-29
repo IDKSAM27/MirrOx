@@ -1,15 +1,13 @@
 use anyhow::{Context, Result};
 use ffmpeg_next::{
     codec,
-    decoder::Video as VideoDecoder,
     format,
     frame::Video,
     software::scaling::{context::Context as Scaler, flag::Flags},
     util::format::pixel::Pixel,
 };
-use sdl2::{pixels::PixelFormatEnum, rect::Rect};
+use sdl2::pixels::PixelFormatEnum;
 use std::{
-    io::Read,
     process::{Command, Stdio},
     thread,
 };
@@ -17,7 +15,6 @@ use std::{
 pub fn start_video_stream() -> Result<()> {
     ffmpeg_next::init().context("Failed to initialize FFmpeg")?;
 
-    // Launch scrcpy-server on the Android device
     let mut adb_child = Command::new("adb")
         .args(["exec-out", "scrcpy-server"])
         .stdout(Stdio::piped())
@@ -29,11 +26,9 @@ pub fn start_video_stream() -> Result<()> {
         .take()
         .context("Failed to capture stdout from ADB child")?;
 
-    // Create a temp file for FFmpeg to read from
-    let mut temp_file = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
+    let temp_file = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
     let temp_path = temp_file.path().to_path_buf();
 
-    // Thread: copy ADB stdout to temp file
     thread::spawn({
         let mut reader = stdout;
         let mut writer = temp_file;
@@ -42,7 +37,6 @@ pub fn start_video_stream() -> Result<()> {
         }
     });
 
-    // Wait a bit to buffer enough data
     thread::sleep(std::time::Duration::from_secs(1));
 
     let mut ictx = format::input(&temp_path).context("Failed to open input via FFmpeg")?;
@@ -55,20 +49,24 @@ pub fn start_video_stream() -> Result<()> {
     let context_decoder = codec::context::Context::from_parameters(input.parameters())?;
     let mut decoder = context_decoder.decoder().video()?;
 
+    let width = decoder.width();
+    let height = decoder.height();
+    let src_format = decoder.format();
+
     let mut scaler = Scaler::get(
-        decoder.format(),
-        decoder.width(),
-        decoder.height(),
+        src_format,
+        width,
+        height,
         Pixel::RGB24,
-        decoder.width(),
-        decoder.height(),
+        width,
+        height,
         Flags::BILINEAR,
     )?;
 
     let sdl = sdl2::init().map_err(|e| anyhow::anyhow!("{}", e))?;
     let video_subsystem = sdl.video().map_err(|e| anyhow::anyhow!("{}", e))?;
     let window = video_subsystem
-        .window("MirrOx", decoder.width() as u32, decoder.height() as u32)
+        .window("MirrOx", width as u32, height as u32)
         .position_centered()
         .build()
         .map_err(|e| anyhow::anyhow!("{}", e))?;
@@ -81,42 +79,12 @@ pub fn start_video_stream() -> Result<()> {
 
     let texture_creator = canvas.texture_creator();
     let mut texture = texture_creator
-        .create_texture_streaming(
-            PixelFormatEnum::RGB24,
-            decoder.width() as u32,
-            decoder.height() as u32,
-        )
+        .create_texture_streaming(PixelFormatEnum::RGB24, width as u32, height as u32)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let mut event_pump = sdl.event_pump().map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let mut receive_and_render = |frame: &Video| -> Result<()> {
-        let mut rgb_frame = Video::empty();
-        scaler.run(frame, &mut rgb_frame)?;
-
-        texture
-            .with_lock(None, |buffer, pitch| {
-                let data = rgb_frame.data(0);
-                let linesize = rgb_frame.stride(0);
-                for y in 0..decoder.height() {
-                    let y_usize = y as usize;
-                    let src_start = y_usize * linesize as usize;
-                    let dst_start = y_usize * pitch as usize;
-                    let row_width = decoder.width() as usize * 3;
-                    let src = &data[src_start..src_start + row_width];
-                    let dst = &mut buffer[dst_start..dst_start + row_width];
-                    dst.copy_from_slice(src);
-                }
-            })
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
-
-        canvas.clear();
-        canvas
-            .copy(&texture, None, None)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
-        canvas.present();
-        Ok(())
-    };
+    let mut rgb_frame = Video::empty();
 
     for (stream, packet) in ictx.packets() {
         if stream.index() == video_stream_index {
@@ -124,10 +92,30 @@ pub fn start_video_stream() -> Result<()> {
 
             let mut decoded = Video::empty();
             while decoder.receive_frame(&mut decoded).is_ok() {
-                receive_and_render(&decoded)?;
+                scaler.run(&decoded, &mut rgb_frame)?;
 
+                texture
+                    .with_lock(None, |buffer, pitch| {
+                        let data = rgb_frame.data(0);
+                        let linesize = rgb_frame.stride(0);
+                        for y in 0..height {
+                            let y_usize = y as usize;
+                            let src_start = y_usize * linesize as usize;
+                            let dst_start = y_usize * pitch as usize;
+                            let row_width = width as usize * 3;
+                            let src = &data[src_start..src_start + row_width];
+                            let dst = &mut buffer[dst_start..dst_start + row_width];
+                            dst.copy_from_slice(src);
+                        }
+                    })
+                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+                canvas.clear();
+                canvas.copy(&texture, None, None)?;
+                canvas.present();
+
+                use sdl2::event::Event;
                 for event in event_pump.poll_iter() {
-                    use sdl2::event::Event;
                     if let Event::Quit { .. } = event {
                         return Ok(());
                     }
