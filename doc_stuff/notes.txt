@@ -467,3 +467,9 @@ The scrcpy-server sends a protocol header before the actual video data - this is
 SO, This is what I need to do now, (THE ACTUAL HARD STUFF)
 -> Read that header from the TcpStream
 -> Then pass only the H.264 video part to FFmpeg
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+    Failed to open input via FFmpeg.
+-> This is the main error I'm getting, I found out,
+        
