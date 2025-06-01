@@ -472,4 +472,4 @@ SO, This is what I need to do now, (THE ACTUAL HARD STUFF)
 
     Failed to open input via FFmpeg.
 -> This is the main error I'm getting, I found out,
-        
+       FFmpeg input via a tempfile is functional, but not everytime efficient for real-time. 

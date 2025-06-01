@@ -8,35 +8,30 @@ use ffmpeg_next::{
 };
 use sdl2::pixels::PixelFormatEnum;
 use std::{
-    process::{Command, Stdio},
+    net::TcpStream,
     thread,
 };
 
 pub fn start_video_stream() -> Result<()> {
     ffmpeg_next::init().context("Failed to initialize FFmpeg")?;
 
-    let mut adb_child = Command::new("adb")
-        .args(["exec-out", "scrcpy-server"])
-        .stdout(Stdio::piped())
-        .spawn()
-        .context("Failed to launch scrcpy-server via ADB")?;
+    // Connect to the scrcpy server over TCP
+    let mut stream = TcpStream::connect("127.0.0.1:27183")
+        .context("Failed to connect to scrcpy TCP server")?;
 
-    let stdout = adb_child
-        .stdout
-        .take()
-        .context("Failed to capture stdout from ADB child")?;
-
+    // Temporary file to feed into FFmpeg
     let temp_file = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
     let temp_path = temp_file.path().to_path_buf();
 
+    // Spawn a thread to copy bytes from the TCP stream to the file
     thread::spawn({
-        let mut reader = stdout;
         let mut writer = temp_file;
         move || {
-            let _ = std::io::copy(&mut reader, &mut writer);
+            let _ = std::io::copy(&mut stream, &mut writer);
         }
     });
 
+    // Wait briefly for enough data to accumulate
     thread::sleep(std::time::Duration::from_secs(1));
 
     let mut ictx = format::input(&temp_path).context("Failed to open input via FFmpeg")?;
@@ -83,7 +78,6 @@ pub fn start_video_stream() -> Result<()> {
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let mut event_pump = sdl.event_pump().map_err(|e| anyhow::anyhow!("{}", e))?;
-
     let mut rgb_frame = Video::empty();
 
     for (stream, packet) in ictx.packets() {
