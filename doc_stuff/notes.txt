@@ -473,3 +473,10 @@ SO, This is what I need to do now, (THE ACTUAL HARD STUFF)
     Failed to open input via FFmpeg.
 -> This is the main error I'm getting, I found out,
        FFmpeg input via a tempfile is functional, but not everytime efficient for real-time. 
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+02/06/2025
+
+Some minor code cleanup is necessary, `tempfile` is not appopriate for handling the FFmpeg input.
+    -> Replace tempfile with a real-time streaming pipeline
