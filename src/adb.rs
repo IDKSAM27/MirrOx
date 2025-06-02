@@ -21,20 +21,20 @@ pub fn start_scrcpy_server(version: &str) -> std::io::Result<()> {
     println!("[*] server pushed to device");
 
     // adb forward tcp:27183 localabstract:scrcpy
-    let tcp_port_number = format!("tcp:27183");
-    let local_abstract = format!("localabstract:scrcpy");
+    let tcp_port_number = "tcp:27183";
+    let local_abstract = "localabstract:scrcpy";
     let forward_tcp = Command::new("adb")
-        .args(["forward", &tcp_port_number, &local_abstract])
+        .args(["forward", tcp_port_number, local_abstract])
         .status()?;
-    
+
     if !forward_tcp.success() {
         eprintln!("[*] Failed to forward TCP port number");
-        return Err(std::io::Error::new(std::io::ErrorKind::Other, "adb forward failed"))
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "adb forward failed"));
     }
 
     println!("[*] TCP port number forwarded to device");
 
-    // Start the scrcpy server via adb shell
+    // Correct way to start the server using app_process via shell
     let server_command = format!(
         "CLASSPATH={} app_process / com.genymobile.scrcpy.Server {} scid=12345678 log_level=info audio=false max_size=1920",
         device_path,
@@ -42,7 +42,7 @@ pub fn start_scrcpy_server(version: &str) -> std::io::Result<()> {
     );
 
     let mut child = Command::new("adb")
-        .args(["shell", &server_command])
+        .args(["shell", "sh", "-c", &server_command])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

@@ -1,43 +1,125 @@
 use anyhow::{Context, Result};
-use ffmpeg_next::{
-    codec,
-    format,
-    frame::Video,
-    software::scaling::{context::Context as Scaler, flag::Flags},
+use ffmpeg_next as ffmpeg;
+use ffmpeg::{
+    codec, frame::Video, media, software::scaling::{context::Context as Scaler, flag::Flags},
     util::format::pixel::Pixel,
 };
 use sdl2::pixels::PixelFormatEnum;
 use std::{
-    net::TcpStream,
+    ffi::c_void,
+    io::{Read},
+    process::{Command, Stdio},
     thread,
 };
+use crossbeam_channel::{bounded, Receiver};
+use ffmpeg_sys_next as ffmpeg_sys;
+
+struct FifoIO {
+    rx: Receiver<u8>,
+    buffer: Vec<u8>,
+}
+
+impl Read for FifoIO {
+    fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+        while self.buffer.len() < out.len() {
+            match self.rx.recv() {
+                Ok(byte) => self.buffer.push(byte),
+                Err(_) => break,
+            }
+        }
+        let n = std::cmp::min(out.len(), self.buffer.len());
+        out[..n].copy_from_slice(&self.buffer[..n]);
+        self.buffer.drain(..n);
+        Ok(n)
+    }
+}
+
+unsafe extern "C" fn read_packet(
+    opaque: *mut c_void,
+    buf: *mut u8,
+    buf_size: i32,
+) -> i32 {
+    let fifo: &mut FifoIO = &mut *(opaque as *mut FifoIO);
+    let out_buf = std::slice::from_raw_parts_mut(buf, buf_size as usize);
+
+    match fifo.read(out_buf) {
+        Ok(n) => n as i32,
+        Err(_) => ffmpeg_sys::AVERROR_EOF,
+    }
+}
 
 pub fn start_video_stream() -> Result<()> {
-    ffmpeg_next::init().context("Failed to initialize FFmpeg")?;
+    ffmpeg::init().context("Failed to initialize FFmpeg")?;
 
-    // Connect to the scrcpy server over TCP
-    let mut stream = TcpStream::connect("127.0.0.1:27183")
-        .context("Failed to connect to scrcpy TCP server")?;
+    let (tx, rx) = bounded::<u8>(1024 * 1024);
 
-    // Temporary file to feed into FFmpeg
-    let temp_file = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
-    let temp_path = temp_file.path().to_path_buf();
+    let mut adb_child = Command::new("adb")
+        .args(["exec-out", "scrcpy-server"])
+        .stdout(Stdio::piped())
+        .spawn()
+        .context("Failed to start scrcpy-server")?;
 
-    // Spawn a thread to copy bytes from the TCP stream to the file
-    thread::spawn({
-        let mut writer = temp_file;
-        move || {
-            let _ = std::io::copy(&mut stream, &mut writer);
+    let mut stdout = adb_child.stdout.take().context("Failed to capture ADB stdout")?;
+
+    thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        while let Ok(n) = stdout.read(&mut buf) {
+            if n == 0 {
+                break;
+            }
+            for &byte in &buf[..n] {
+                if tx.send(byte).is_err() {
+                    break;
+                }
+            }
         }
     });
 
-    // Wait briefly for enough data to accumulate
-    thread::sleep(std::time::Duration::from_secs(1));
+    // Create AVIOContext
+    let fifo = Box::new(FifoIO { rx, buffer: Vec::new() });
+    let fifo_ptr = Box::into_raw(fifo);
 
-    let mut ictx = format::input(&temp_path).context("Failed to open input via FFmpeg")?;
+    let buffer_size = 4096;
+    let buffer = unsafe { ffmpeg_sys::av_malloc(buffer_size) as *mut u8 };
+    let avio_ctx = unsafe {
+        ffmpeg_sys::avio_alloc_context(
+            buffer,
+            buffer_size as i32,
+            0,
+            fifo_ptr as *mut _,
+            Some(read_packet),
+            None,
+            None,
+        )
+    };
+
+    if avio_ctx.is_null() {
+        return Err(anyhow::anyhow!("Failed to allocate AVIO context"));
+    }
+
+    let fmt_ctx = unsafe { ffmpeg_sys::avformat_alloc_context() };
+    if fmt_ctx.is_null() {
+        return Err(anyhow::anyhow!("Failed to allocate format context"));
+    }
+
+    unsafe {
+        (*fmt_ctx).pb = avio_ctx;
+        (*fmt_ctx).flags |= ffmpeg_sys::AVFMT_FLAG_CUSTOM_IO;
+    }
+
+    if unsafe { ffmpeg_sys::avformat_open_input(&mut (fmt_ctx as *mut _), std::ptr::null(), std::ptr::null_mut(), std::ptr::null_mut()) } != 0 {
+        return Err(anyhow::anyhow!("Failed to open custom AV input"));
+    }
+
+    if unsafe { ffmpeg_sys::avformat_find_stream_info(fmt_ctx, std::ptr::null_mut()) } < 0 {
+        return Err(anyhow::anyhow!("Failed to find stream info"));
+    }
+
+    let mut ictx = unsafe { ffmpeg::format::context::Input::wrap(fmt_ctx) };   
+
     let input = ictx
         .streams()
-        .best(ffmpeg_next::media::Type::Video)
+        .best(media::Type::Video)
         .context("Couldn't find best video stream")?;
 
     let video_stream_index = input.index();
