@@ -1,8 +1,7 @@
-use std::io::{Read};
+use std::io::{Read, Write};
 use std::net::TcpStream;
 
-pub fn connect_to_scrcpy() -> std::io::Result<()> {
-
+pub fn connect_to_server() -> std::io::Result<TcpStream> {
     println!("Connecting to server on localhost:27183...");
     let mut stream = TcpStream::connect("127.0.0.1:27183")?;
     println!("[MirrOx] Connected to server!");
