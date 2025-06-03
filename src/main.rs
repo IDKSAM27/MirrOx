@@ -14,9 +14,7 @@ fn main() {
         return;
     }
 
-    println!("Connecting to server on localhost:27183...");
-
-    match tcp_client::connect_to_scrcpy() {
+    match tcp_client::connect_to_server() {
         Ok(_) => println!("[*] Connected to server successfully."),
         Err(e) => eprintln!("Failed to connect to server: {e}"),
     }
