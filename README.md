@@ -1,5 +1,7 @@
 # Mirror + Oxidation
 
+## I'll update the readme once the project is "somewhat" finished. It's too dynamic right now.
+
 ```graphql
 mirrox/  
 │── src/  
