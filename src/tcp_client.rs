@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::{Write};
 use std::net::TcpStream;
 
 pub fn connect_to_server() -> std::io::Result<TcpStream> {

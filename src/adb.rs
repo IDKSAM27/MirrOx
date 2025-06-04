@@ -36,7 +36,7 @@ pub fn start_scrcpy_server(version: &str) -> std::io::Result<()> {
 
     // Correct way to start the server using app_process via shell
     let server_command = format!(
-        "CLASSPATH={} app_process / com.genymobile.scrcpy.Server {} scid=12345678 log_level=info audio=false max_size=1920",
+        "CLASSPATH={} app_process / com.genymobile.scrcpy.Server {} scid=12345678 log_level=debug audio=false max_size=1920",
         device_path,
         version
     );
