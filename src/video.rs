@@ -1,21 +1,20 @@
 use anyhow::{Context, Result};
+use crossbeam_channel::Receiver;
 use ffmpeg_next as ffmpeg;
 use ffmpeg::{
     codec, frame::Video, media, software::scaling::{context::Context as Scaler, flag::Flags},
     util::format::pixel::Pixel,
 };
 use sdl2::pixels::PixelFormatEnum;
-use std::{
-    ffi::c_void,
-    io::{Read},
-    process::{Command, Stdio},
-    thread,
-};
-use crossbeam_channel::{bounded, Receiver};
+use std::io::{Read};
+use std::net::TcpStream;
+use std::thread;
+
 use ffmpeg_sys_next as ffmpeg_sys;
 
+/// FifoIO used as AVIO input for FFmpeg
 struct FifoIO {
-    rx: Receiver<u8>,
+    rx: Receiver<Vec<u8>>,
     buffer: Vec<u8>,
 }
 
@@ -23,7 +22,7 @@ impl Read for FifoIO {
     fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
         while self.buffer.len() < out.len() {
             match self.rx.recv() {
-                Ok(byte) => self.buffer.push(byte),
+                Ok(bytes) => self.buffer.extend(bytes),
                 Err(_) => break,
             }
         }
@@ -35,7 +34,7 @@ impl Read for FifoIO {
 }
 
 unsafe extern "C" fn read_packet(
-    opaque: *mut c_void,
+    opaque: *mut std::ffi::c_void,
     buf: *mut u8,
     buf_size: i32,
 ) -> i32 {
@@ -48,35 +47,12 @@ unsafe extern "C" fn read_packet(
     }
 }
 
-pub fn start_video_stream() -> Result<()> {
+/// Start video stream from channel of demuxed video frames
+pub fn start_video_stream(video_rx: Receiver<Vec<u8>>) -> Result<()> {
     ffmpeg::init().context("Failed to initialize FFmpeg")?;
 
-    let (tx, rx) = bounded::<u8>(1024 * 1024);
-
-    let mut adb_child = Command::new("adb")
-        .args(["exec-out", "scrcpy-server"])
-        .stdout(Stdio::piped())
-        .spawn()
-        .context("Failed to start scrcpy-server")?;
-
-    let mut stdout = adb_child.stdout.take().context("Failed to capture ADB stdout")?;
-
-    thread::spawn(move || {
-        let mut buf = [0u8; 4096];
-        while let Ok(n) = stdout.read(&mut buf) {
-            if n == 0 {
-                break;
-            }
-            for &byte in &buf[..n] {
-                if tx.send(byte).is_err() {
-                    break;
-                }
-            }
-        }
-    });
-
-    // Create AVIOContext
-    let fifo = Box::new(FifoIO { rx, buffer: Vec::new() });
+    // Feed demuxed bytes into AVIOContext
+    let fifo = Box::new(FifoIO { rx: video_rx, buffer: Vec::new() });
     let fifo_ptr = Box::into_raw(fifo);
 
     let buffer_size = 4096;
@@ -115,7 +91,7 @@ pub fn start_video_stream() -> Result<()> {
         return Err(anyhow::anyhow!("Failed to find stream info"));
     }
 
-    let mut ictx = unsafe { ffmpeg::format::context::Input::wrap(fmt_ctx) };   
+    let mut ictx = unsafe { ffmpeg::format::context::Input::wrap(fmt_ctx) };
 
     let input = ictx
         .streams()
