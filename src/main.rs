@@ -19,10 +19,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let mut stream = match tcp_client::connect_to_server() {
-        Ok(s) => {
+    let mut tcp_stream = match tcp_client::connect_to_server() {
+        Ok(stream) => {
             println!("[*] Connected to server successfully.");
-            s
+            stream
         }
         Err(e) => {
             eprintln!("Failed to connect to server: {e}");
@@ -30,17 +30,19 @@ fn main() -> Result<()> {
         }
     };
 
-    // Scrcpy sends a 1-byte channel indicator: 0x00 (video)
-    let mut first_byte = [0u8; 1];
-    stream.read_exact(&mut first_byte)?;
-
-    if first_byte[0] != 0x00 {
-        eprintln!("[!] Expected video stream (channel 0x00), got 0x{:02X}", first_byte[0]);
-        return Ok(());
+    // Discard the first byte: frame type header `0x00` for video stream
+    let mut frame_type = [0u8; 1];
+    tcp_stream.read_exact(&mut frame_type)?;
+    if frame_type[0] != 0x00 {
+        return Err(anyhow::anyhow!(
+            "Expected video frame type (0x00), got: {:02x}",
+            frame_type[0]
+        ));
     }
 
-    // Feed remaining stream directly to video decoder
-    video::start_video_stream(stream)?;
+    // Now safely pass the stream to FFmpeg
+    video::start_video_stream(tcp_stream)?;
 
     Ok(())
 }
+
