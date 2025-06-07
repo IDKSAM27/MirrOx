@@ -490,3 +490,11 @@ I will:
     -> Replace tempfile and format::input() with a safe wrapper over the raw context.
     -> Pass this custom input into FFmpeg decoder.
 
+---------------------------------------------------------------------------------------------------------------------------------
+
+07/06/2025
+
+After a long break, back to business.
+I'll be using two seperate TCP Sockets,
+    -> One for the video stream
+    -> One for control/clipboard/device messages
