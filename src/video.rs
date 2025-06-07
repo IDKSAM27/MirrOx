@@ -1,20 +1,19 @@
 use anyhow::{Context, Result};
-use crossbeam_channel::Receiver;
+use crossbeam_channel::unbounded;
 use ffmpeg_next as ffmpeg;
 use ffmpeg::{
     codec, frame::Video, media, software::scaling::{context::Context as Scaler, flag::Flags},
     util::format::pixel::Pixel,
 };
 use sdl2::pixels::PixelFormatEnum;
-use std::io::{Read};
-use std::net::TcpStream;
+use std::io::Read;
 use std::thread;
 
 use ffmpeg_sys_next as ffmpeg_sys;
 
 /// FifoIO used as AVIO input for FFmpeg
 struct FifoIO {
-    rx: Receiver<Vec<u8>>,
+    rx: crossbeam_channel::Receiver<Vec<u8>>,
     buffer: Vec<u8>,
 }
 
@@ -47,9 +46,23 @@ unsafe extern "C" fn read_packet(
     }
 }
 
-/// Start video stream from channel of demuxed video frames
-pub fn start_video_stream(video_rx: Receiver<Vec<u8>>) -> Result<()> {
+/// Start video stream from a raw H.264 stream
+pub fn start_video_stream<R: Read + Send + 'static>(mut reader: R) -> Result<()> {
     ffmpeg::init().context("Failed to initialize FFmpeg")?;
+
+    // Spawn background thread to fill channel from input reader
+    let (video_tx, video_rx) = unbounded();
+    thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        while let Ok(n) = reader.read(&mut buf) {
+            if n == 0 {
+                break;
+            }
+            if video_tx.send(buf[..n].to_vec()).is_err() {
+                break;
+            }
+        }
+    });
 
     // Feed demuxed bytes into AVIOContext
     let fifo = Box::new(FifoIO { rx: video_rx, buffer: Vec::new() });
@@ -83,7 +96,15 @@ pub fn start_video_stream(video_rx: Receiver<Vec<u8>>) -> Result<()> {
         (*fmt_ctx).flags |= ffmpeg_sys::AVFMT_FLAG_CUSTOM_IO;
     }
 
-    if unsafe { ffmpeg_sys::avformat_open_input(&mut (fmt_ctx as *mut _), std::ptr::null(), std::ptr::null_mut(), std::ptr::null_mut()) } != 0 {
+    if unsafe {
+        ffmpeg_sys::avformat_open_input(
+            &mut (fmt_ctx as *mut _),
+            std::ptr::null(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    } != 0
+    {
         return Err(anyhow::anyhow!("Failed to open custom AV input"));
     }
 

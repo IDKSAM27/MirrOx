@@ -498,3 +498,5 @@ After a long break, back to business.
 I'll be using two seperate TCP Sockets,
     -> One for the video stream
     -> One for control/clipboard/device messages
+
+HUGE commit incomming. (revert checkpoint)

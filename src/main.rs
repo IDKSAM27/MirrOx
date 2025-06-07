@@ -2,11 +2,11 @@ mod adb;
 mod utils;
 mod tcp_client;
 mod video;
-mod mux;
+// mod mux;
 
-use crossbeam_channel::unbounded;
-use std::net::TcpStream;
 use anyhow::Result;
+use std::io::Read;
+// use std::net::TcpStream;
 
 fn main() -> Result<()> {
     println!("Starting MirrOx Server...");
@@ -19,10 +19,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let tcp_stream = match tcp_client::connect_to_server() {
-        Ok(stream) => {
+    let mut stream = match tcp_client::connect_to_server() {
+        Ok(s) => {
             println!("[*] Connected to server successfully.");
-            stream
+            s
         }
         Err(e) => {
             eprintln!("Failed to connect to server: {e}");
@@ -30,14 +30,17 @@ fn main() -> Result<()> {
         }
     };
 
-    let (video_tx, video_rx) = unbounded();
-    let (control_tx, control_rx) = unbounded();
-    let (clipboard_tx, clipboard_rx) = unbounded();
-    let (device_tx, device_rx) = unbounded();
+    // Scrcpy sends a 1-byte channel indicator: 0x00 (video)
+    let mut first_byte = [0u8; 1];
+    stream.read_exact(&mut first_byte)?;
 
-    mux::demux(tcp_stream, video_tx, control_tx, clipboard_tx, device_tx);
+    if first_byte[0] != 0x00 {
+        eprintln!("[!] Expected video stream (channel 0x00), got 0x{:02X}", first_byte[0]);
+        return Ok(());
+    }
 
-    video::start_video_stream(video_rx)?; 
+    // Feed remaining stream directly to video decoder
+    video::start_video_stream(stream)?;
 
     Ok(())
 }
