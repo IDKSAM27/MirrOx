@@ -1,74 +1,40 @@
-use std::io::{Read, Result};
-use crossbeam_channel::{Sender};
+use std::collections::VecDeque;
+use std::io::{Read, Result, Seek, SeekFrom};
 
-#[derive(Debug)]
-pub enum ScrcpyFrame {
-    Video(Vec<u8>),
-    Control(Vec<u8>),
-    Clipboard(Vec<u8>),
-    DeviceMessage(Vec<u8>),
+pub struct FifoIO {
+    buffer: VecDeque<u8>,
 }
 
-pub fn demux<R: Read + Send + 'static>(
-    mut reader: R,
-    video_tx: Sender<Vec<u8>>,
-    control_tx: Sender<Vec<u8>>,
-    clipboard_tx: Sender<Vec<u8>>,
-    device_tx: Sender<Vec<u8>>,
-) {
-    std::thread::spawn(move || {
-        loop {
-            let mut header = [0u8; 1];
-            if reader.read_exact(&mut header).is_err() {
-                break;
-            }
+impl FifoIO {
+    pub fn new() -> Self {
+        Self {
+            buffer: VecDeque::new(),
+        }
+    }
 
-            let frame_type = header[0];
+    pub fn push_data(&mut self, data: &[u8]) {
+        self.buffer.extend(data);
+    }
+}
 
-            match frame_type {
-                0x00 => {
-                    // Video frame has no length prefix, it's a raw stream (we forward entire reader to video module)
-                    let mut buffer = [0u8; 4096];
-                    loop {
-                        match reader.read(&mut buffer) {
-                            Ok(0) | Err(_) => break,
-                            Ok(n) => {
-                                if video_tx.send(buffer[..n].to_vec()).is_err() {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    break;
-                }
-                0x01 | 0x02 | 0x03 => {
-                    let mut len_buf = [0u8; 4];
-                    if reader.read_exact(&mut len_buf).is_err() {
-                        break;
-                    }
-                    let len = u32::from_be_bytes(len_buf) as usize;
-
-                    let mut payload = vec![0u8; len];
-                    if reader.read_exact(&mut payload).is_err() {
-                        break;
-                    }
-
-                    let target = match frame_type {
-                        0x01 => &control_tx,
-                        0x02 => &clipboard_tx,
-                        0x03 => &device_tx,
-                        _ => continue,
-                    };
-
-                    if target.send(payload).is_err() {
-                        break;
-                    }
-                }
-                _ => {
-                    // Unknown frame type
-                    break;
-                }
+impl Read for FifoIO {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        let n = std::cmp::min(buf.len(), self.buffer.len());
+        for i in 0..n {
+            if let Some(b) = self.buffer.pop_front() {
+                buf[i] = b;
             }
         }
-    });
+        Ok(n)
+    }
+}
+
+impl Seek for FifoIO {
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64> {
+        match pos {
+            SeekFrom::Start(_) => Ok(0),
+            SeekFrom::End(_) => Ok(0),
+            SeekFrom::Current(_) => Ok(0),
+        }
+    }
 }
