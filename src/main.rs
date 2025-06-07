@@ -2,7 +2,7 @@ mod adb;
 mod utils;
 mod tcp_client;
 mod video;
-// mod mux;
+mod mux;
 
 use anyhow::Result;
 use std::io::Read;

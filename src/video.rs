@@ -1,201 +1,201 @@
-use anyhow::{Context, Result};
-use crossbeam_channel::unbounded;
-use ffmpeg_next as ffmpeg;
-use ffmpeg::{
-    codec, frame::Video, media, software::scaling::{context::Context as Scaler, flag::Flags},
-    util::format::pixel::Pixel,
-};
-use sdl2::pixels::PixelFormatEnum;
-use std::io::Read;
+use std::ffi::CString;
+use std::os::raw::{c_int, c_void};
+use std::ptr;
+use std::sync::{Arc, Mutex};
 use std::thread;
+use std::io::Read
 
-use ffmpeg_sys_next as ffmpeg_sys;
+use crossbeam_channel::Receiver;
+use ffmpeg_sys::*;
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::TextureAccess;
 
-/// FifoIO used as AVIO input for FFmpeg
-struct FifoIO {
-    rx: crossbeam_channel::Receiver<Vec<u8>>,
-    buffer: Vec<u8>,
-}
+use crate::mux::FifoIO;
 
-impl Read for FifoIO {
-    fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
-        while self.buffer.len() < out.len() {
-            match self.rx.recv() {
-                Ok(bytes) => self.buffer.extend(bytes),
-                Err(_) => break,
-            }
-        }
-        let n = std::cmp::min(out.len(), self.buffer.len());
-        out[..n].copy_from_slice(&self.buffer[..n]);
-        self.buffer.drain(..n);
-        Ok(n)
+pub fn start_video_stream(receiver: Receiver<Vec<u8>>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    unsafe {
+        av_register_all();
+        avcodec_register_all();
+        avformat_network_init();
     }
-}
 
-unsafe extern "C" fn read_packet(
-    opaque: *mut std::ffi::c_void,
-    buf: *mut u8,
-    buf_size: i32,
-) -> i32 {
-    let fifo: &mut FifoIO = &mut *(opaque as *mut FifoIO);
-    let out_buf = std::slice::from_raw_parts_mut(buf, buf_size as usize);
+    let io_buffer_size = 32768;
+    let fifo = Arc::new(Mutex::new(FifoIO::new()));
 
-    match fifo.read(out_buf) {
-        Ok(n) => n as i32,
-        Err(_) => ffmpeg_sys::AVERROR_EOF,
-    }
-}
-
-/// Start video stream from a raw H.264 stream
-pub fn start_video_stream<R: Read + Send + 'static>(mut reader: R) -> Result<()> {
-    ffmpeg::init().context("Failed to initialize FFmpeg")?;
-
-    // Spawn background thread to fill channel from input reader
-    let (video_tx, video_rx) = unbounded();
+    let reader_fifo = fifo.clone();
     thread::spawn(move || {
-        let mut buf = [0u8; 4096];
-        while let Ok(n) = reader.read(&mut buf) {
-            if n == 0 {
-                break;
-            }
-            if video_tx.send(buf[..n].to_vec()).is_err() {
-                break;
-            }
+        while let Ok(data) = receiver.recv() {
+            let mut fifo = reader_fifo.lock().unwrap();
+            fifo.push_data(&data);
         }
     });
 
-    // Feed demuxed bytes into AVIOContext
-    let fifo = Box::new(FifoIO { rx: video_rx, buffer: Vec::new() });
-    let fifo_ptr = Box::into_raw(fifo);
+    // Allocate buffer for AVIOContext
+    let avio_buffer = unsafe { av_malloc(io_buffer_size) as *mut u8 };
+    if avio_buffer.is_null() {
+        return Err("Failed to allocate AVIO buffer".into());
+    }
 
-    let buffer_size = 4096;
-    let buffer = unsafe { ffmpeg_sys::av_malloc(buffer_size) as *mut u8 };
+    extern "C" fn read_packet(
+        opaque: *mut c_void,
+        buf: *mut u8,
+        buf_size: c_int,
+    ) -> c_int {
+        let fifo = unsafe { &mut *(opaque as *mut Arc<Mutex<FifoIO>>) };
+        let mut buffer = vec![0u8; buf_size as usize];
+        match fifo.lock().unwrap().read(&mut buffer) {
+            Ok(n) if n > 0 => {
+                unsafe {
+                    std::ptr::copy_nonoverlapping(buffer.as_ptr(), buf, n);
+                }
+                n as c_int
+            }
+            _ => AVERROR_EAGAIN,
+        }
+    }
+
+    let opaque_fifo = Box::new(fifo);
+    let opaque_ptr = Box::into_raw(opaque_fifo) as *mut c_void;
+
     let avio_ctx = unsafe {
-        ffmpeg_sys::avio_alloc_context(
-            buffer,
-            buffer_size as i32,
+        avio_alloc_context(
+            avio_buffer,
+            io_buffer_size,
             0,
-            fifo_ptr as *mut _,
+            opaque_ptr,
             Some(read_packet),
             None,
             None,
         )
     };
-
     if avio_ctx.is_null() {
-        return Err(anyhow::anyhow!("Failed to allocate AVIO context"));
+        return Err("Failed to create AVIO context".into());
     }
 
-    let fmt_ctx = unsafe { ffmpeg_sys::avformat_alloc_context() };
+    // Allocate AVFormatContext and set custom AVIO
+    let mut fmt_ctx = unsafe { avformat_alloc_context() };
     if fmt_ctx.is_null() {
-        return Err(anyhow::anyhow!("Failed to allocate format context"));
+        return Err("Failed to allocate AVFormatContext".into());
     }
-
     unsafe {
         (*fmt_ctx).pb = avio_ctx;
-        (*fmt_ctx).flags |= ffmpeg_sys::AVFMT_FLAG_CUSTOM_IO;
     }
 
-    if unsafe {
-        ffmpeg_sys::avformat_open_input(
-            &mut (fmt_ctx as *mut _),
-            std::ptr::null(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        )
-    } != 0
-    {
-        return Err(anyhow::anyhow!("Failed to open custom AV input"));
+    // Use "h264" demuxer explicitly
+    let input_format_name = CString::new("h264")?;
+    let input_format = unsafe { av_find_input_format(input_format_name.as_ptr()) };
+    if input_format.is_null() {
+        return Err("Failed to find H264 demuxer".into());
     }
 
-    if unsafe { ffmpeg_sys::avformat_find_stream_info(fmt_ctx, std::ptr::null_mut()) } < 0 {
-        return Err(anyhow::anyhow!("Failed to find stream info"));
+    // Open input
+    let res = unsafe {
+        avformat_open_input(&mut fmt_ctx, ptr::null(), input_format, ptr::null_mut())
+    };
+    if res < 0 {
+        return Err(format!("Failed to open input: {}", res).into());
     }
 
-    let mut ictx = unsafe { ffmpeg::format::context::Input::wrap(fmt_ctx) };
+    // Find stream info (optional for raw H264 but kept for future formats)
+    unsafe {
+        avformat_find_stream_info(fmt_ctx, ptr::null_mut());
+    }
 
-    let input = ictx
-        .streams()
-        .best(media::Type::Video)
-        .context("Couldn't find best video stream")?;
-
-    let video_stream_index = input.index();
-    let context_decoder = codec::context::Context::from_parameters(input.parameters())?;
-    let mut decoder = context_decoder.decoder().video()?;
-
-    let width = decoder.width();
-    let height = decoder.height();
-    let src_format = decoder.format();
-
-    let mut scaler = Scaler::get(
-        src_format,
-        width,
-        height,
-        Pixel::RGB24,
-        width,
-        height,
-        Flags::BILINEAR,
-    )?;
-
-    let sdl = sdl2::init().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let video_subsystem = sdl.video().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let window = video_subsystem
-        .window("MirrOx", width as u32, height as u32)
-        .position_centered()
-        .build()
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
-
-    let mut canvas = window
-        .into_canvas()
-        .accelerated()
-        .build()
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
-
-    let texture_creator = canvas.texture_creator();
-    let mut texture = texture_creator
-        .create_texture_streaming(PixelFormatEnum::RGB24, width as u32, height as u32)
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
-
-    let mut event_pump = sdl.event_pump().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let mut rgb_frame = Video::empty();
-
-    for (stream, packet) in ictx.packets() {
-        if stream.index() == video_stream_index {
-            decoder.send_packet(&packet)?;
-
-            let mut decoded = Video::empty();
-            while decoder.receive_frame(&mut decoded).is_ok() {
-                scaler.run(&decoded, &mut rgb_frame)?;
-
-                texture
-                    .with_lock(None, |buffer, pitch| {
-                        let data = rgb_frame.data(0);
-                        let linesize = rgb_frame.stride(0);
-                        for y in 0..height {
-                            let y_usize = y as usize;
-                            let src_start = y_usize * linesize as usize;
-                            let dst_start = y_usize * pitch as usize;
-                            let row_width = width as usize * 3;
-                            let src = &data[src_start..src_start + row_width];
-                            let dst = &mut buffer[dst_start..dst_start + row_width];
-                            dst.copy_from_slice(src);
-                        }
-                    })
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
-
-                canvas.clear();
-                canvas.copy(&texture, None, None).map_err(|e| anyhow::anyhow!("{}", e))?;
-                canvas.present();
-
-                use sdl2::event::Event;
-                for event in event_pump.poll_iter() {
-                    if let Event::Quit { .. } = event {
-                        return Ok(());
-                    }
-                }
+    // Find video stream index
+    let mut stream_index = -1;
+    unsafe {
+        for i in 0..(*fmt_ctx).nb_streams {
+            let stream = *(*fmt_ctx).streams.offset(i as isize);
+            if (*(*stream).codecpar).codec_type == AVMediaType::AVMEDIA_TYPE_VIDEO {
+                stream_index = i as i32;
+                break;
             }
         }
     }
 
-    Ok(())
+    if stream_index == -1 {
+        return Err("No video stream found".into());
+    }
+
+    // Get codec parameters and find decoder
+    let codecpar = unsafe { (*(*(*fmt_ctx).streams.offset(stream_index as isize))).codecpar };
+    let codec = unsafe { avcodec_find_decoder((*codecpar).codec_id) };
+    if codec.is_null() {
+        return Err("Codec not found".into());
+    }
+
+    // Create codec context and copy parameters
+    let codec_ctx = unsafe { avcodec_alloc_context3(codec) };
+    if codec_ctx.is_null() {
+        return Err("Failed to allocate codec context".into());
+    }
+    let ret = unsafe { avcodec_parameters_to_context(codec_ctx, codecpar) };
+    if ret < 0 {
+        return Err("Failed to copy codec params".into());
+    }
+
+    if unsafe { avcodec_open2(codec_ctx, codec, ptr::null_mut()) } < 0 {
+        return Err("Failed to open codec".into());
+    }
+
+    // Initialize SDL2
+    let sdl = sdl2::init()?;
+    let video = sdl.video()?;
+    let window = video
+        .window("MirrOx Video", 640, 480)
+        .position_centered()
+        .resizable()
+        .build()?;
+    let mut canvas = window.into_canvas().accelerated().build()?;
+    let texture_creator = canvas.texture_creator();
+    let mut texture = texture_creator.create_texture_streaming(
+        PixelFormatEnum::IYUV,
+        640,
+        480,
+    )?;
+
+    let mut event_pump = sdl.event_pump()?;
+
+    // Frame decoding loop
+    let packet = unsafe { av_packet_alloc() };
+    let frame = unsafe { av_frame_alloc() };
+
+    loop {
+        while let Some(event) = event_pump.poll_iter().next() {
+            use sdl2::event::Event;
+            if matches!(event, Event::Quit { .. }) {
+                break;
+            }
+        }
+
+        if unsafe { av_read_frame(fmt_ctx, packet) } < 0 {
+            continue;
+        }
+
+        if unsafe { (*packet).stream_index } != stream_index {
+            unsafe { av_packet_unref(packet) };
+            continue;
+        }
+
+        if unsafe { avcodec_send_packet(codec_ctx, packet) } < 0 {
+            continue;
+        }
+        unsafe { av_packet_unref(packet) };
+
+        while unsafe { avcodec_receive_frame(codec_ctx, frame) } == 0 {
+            let (width, height) = (unsafe { (*frame).width }, unsafe { (*frame).height });
+            texture.update_yuv(
+                None,
+                unsafe { std::slice::from_raw_parts((*frame).data[0], (*frame).linesize[0] as usize * height as usize) },
+                (*frame).linesize[0] as usize,
+                unsafe { std::slice::from_raw_parts((*frame).data[1], (*frame).linesize[1] as usize * height as usize / 2) },
+                (*frame).linesize[1] as usize,
+                unsafe { std::slice::from_raw_parts((*frame).data[2], (*frame).linesize[2] as usize * height as usize / 2) },
+                (*frame).linesize[2] as usize,
+            )?;
+            canvas.clear();
+            canvas.copy(&texture, None, None)?;
+            canvas.present();
+        }
+    }
 }
