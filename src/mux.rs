@@ -1,40 +1,74 @@
-use std::collections::VecDeque;
-use std::io::{Read, Result, Seek, SeekFrom};
+use std::io::{Read, Result};
+use std::sync::{Arc, Mutex};
+use std::net::TcpStream;
+use crossbeam_channel::{bounded, Receiver};
 
+/// Buffer-based reader that implements FFmpeg-compatible callback reading.
 pub struct FifoIO {
-    buffer: VecDeque<u8>,
+    receiver: Receiver<Vec<u8>>,
+    current_chunk: Vec<u8>,
+    position: usize,
 }
 
 impl FifoIO {
-    pub fn new() -> Self {
-        Self {
-            buffer: VecDeque::new(),
+    pub fn new(receiver: Receiver<Vec<u8>>) -> Self {
+        FifoIO {
+            receiver,
+            current_chunk: Vec::new(),
+            position: 0,
         }
     }
 
-    pub fn push_data(&mut self, data: &[u8]) {
-        self.buffer.extend(data);
-    }
-}
+    extern "C" fn read_packet(
+        opaque: *mut std::ffi::c_void,
+        buf: *mut u8,
+        buf_size: i32,
+    ) -> i32 {
+        let fifo = unsafe { &mut *(opaque as *mut FifoIO) };
 
-impl Read for FifoIO {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let n = std::cmp::min(buf.len(), self.buffer.len());
-        for i in 0..n {
-            if let Some(b) = self.buffer.pop_front() {
-                buf[i] = b;
+        loop {
+            if fifo.position < fifo.current_chunk.len() {
+                let available = &fifo.current_chunk[fifo.position..];
+                let to_copy = available.len().min(buf_size as usize);
+
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        available.as_ptr(),
+                        buf,
+                        to_copy,
+                    );
+                }
+
+                fifo.position += to_copy;
+                return to_copy as i32;
+            }
+
+            // Load next chunk
+            match fifo.receiver.recv() {
+                Ok(chunk) => {
+                    fifo.current_chunk = chunk;
+                    fifo.position = 0;
+                }
+                Err(_) => return 0, // EOF
             }
         }
-        Ok(n)
     }
 }
 
-impl Seek for FifoIO {
-    fn seek(&mut self, pos: SeekFrom) -> Result<u64> {
-        match pos {
-            SeekFrom::Start(_) => Ok(0),
-            SeekFrom::End(_) => Ok(0),
-            SeekFrom::Current(_) => Ok(0),
+/// Reads and demuxes the scrcpy server stream, sending only video packets via channel.
+pub fn spawn_mux_channel(mut stream: TcpStream) -> Result<Receiver<Vec<u8>>> {
+    let (sender, receiver) = bounded::<Vec<u8>>(100);
+    std::thread::spawn(move || {
+        let mut buffer = [0u8; 1024];
+        loop {
+            match stream.read(&mut buffer) {
+                Ok(0) => break, // EOF
+                Ok(n) => {
+                    let _ = sender.send(buffer[..n].to_vec());
+                }
+                Err(_) => break,
+            }
         }
-    }
+    });
+    Ok(receiver)
 }

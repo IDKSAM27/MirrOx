@@ -5,14 +5,14 @@ mod video;
 mod mux;
 
 use tcp_client::connect_to_server;
-use adb::start_server;
+use adb::start_scrcpy_server;
 use mux::spawn_mux_channel;
 use anyhow::Result;
 
 fn main() -> Result<()> {
     println!("Starting MirrOx Server...");
 
-    start_server()?;
+    start_scrcpy_server()?;
     let tcp_stream = connect_to_server()?;
     println!("[*] Connected to server successfully.");
 
