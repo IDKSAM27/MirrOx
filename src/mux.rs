@@ -1,74 +1,56 @@
-use std::io::{Read, Result};
-use std::sync::{Arc, Mutex};
-use std::net::TcpStream;
 use crossbeam_channel::{bounded, Receiver};
+use std::collections::VecDeque;
+use std::io::{Read, Result as IoResult};
+use std::net::TcpStream;
+use std::os::raw::{c_int, c_void};
 
-/// Buffer-based reader that implements FFmpeg-compatible callback reading.
+pub fn start_muxed_stream() -> IoResult<Receiver<Vec<u8>>> {
+    let mut stream = TcpStream::connect("127.0.0.1:27183")?;
+    let (sender, receiver) = bounded::<Vec<u8>>(32);
+
+    std::thread::spawn(move || {
+        let mut buffer = [0u8; 4096];
+        while let Ok(len) = stream.read(&mut buffer) {
+            if len == 0 {
+                break;
+            }
+            let _ = sender.send(buffer[..len].to_vec());
+        }
+    });
+
+    Ok(receiver)
+}
+
 pub struct FifoIO {
+    queue: VecDeque<u8>,
     receiver: Receiver<Vec<u8>>,
-    current_chunk: Vec<u8>,
-    position: usize,
 }
 
 impl FifoIO {
     pub fn new(receiver: Receiver<Vec<u8>>) -> Self {
-        FifoIO {
+        Self {
+            queue: VecDeque::new(),
             receiver,
-            current_chunk: Vec::new(),
-            position: 0,
         }
     }
 
-    extern "C" fn read_packet(
-        opaque: *mut std::ffi::c_void,
-        buf: *mut u8,
-        buf_size: i32,
-    ) -> i32 {
+    pub extern "C" fn read_packet(opaque: *mut c_void, buf: *mut u8, buf_size: c_int) -> c_int {
         let fifo = unsafe { &mut *(opaque as *mut FifoIO) };
 
-        loop {
-            if fifo.position < fifo.current_chunk.len() {
-                let available = &fifo.current_chunk[fifo.position..];
-                let to_copy = available.len().min(buf_size as usize);
-
-                unsafe {
-                    std::ptr::copy_nonoverlapping(
-                        available.as_ptr(),
-                        buf,
-                        to_copy,
-                    );
-                }
-
-                fifo.position += to_copy;
-                return to_copy as i32;
-            }
-
-            // Load next chunk
+        while fifo.queue.len() < buf_size as usize {
             match fifo.receiver.recv() {
-                Ok(chunk) => {
-                    fifo.current_chunk = chunk;
-                    fifo.position = 0;
-                }
-                Err(_) => return 0, // EOF
-            }
-        }
-    }
-}
-
-/// Reads and demuxes the scrcpy server stream, sending only video packets via channel.
-pub fn spawn_mux_channel(mut stream: TcpStream) -> Result<Receiver<Vec<u8>>> {
-    let (sender, receiver) = bounded::<Vec<u8>>(100);
-    std::thread::spawn(move || {
-        let mut buffer = [0u8; 1024];
-        loop {
-            match stream.read(&mut buffer) {
-                Ok(0) => break, // EOF
-                Ok(n) => {
-                    let _ = sender.send(buffer[..n].to_vec());
-                }
+                Ok(data) => fifo.queue.extend(data),
                 Err(_) => break,
             }
         }
-    });
-    Ok(receiver)
+
+        let len = buf_size.min(fifo.queue.len() as i32);
+        for i in 0..len as usize {
+            unsafe {
+                *buf.add(i) = fifo.queue.pop_front().unwrap();
+            }
+        }
+
+        len
+    }
 }
