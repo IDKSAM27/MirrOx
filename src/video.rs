@@ -62,11 +62,11 @@ pub fn start_video_stream(receiver: Receiver<Vec<u8>>) -> Result<(), Box<dyn std
         return Err("Failed to find stream info".into());
     }
 
-    let mut stream_index = -1;
+    let mut stream_index: i32 = -1;
     for i in 0..unsafe { (*fmt_ctx).nb_streams } {
         let stream = unsafe { *(*fmt_ctx).streams.offset(i as isize) };
         if unsafe { (*(*stream).codecpar).codec_type } == AVMediaType::AVMEDIA_TYPE_VIDEO {
-            stream_index = i;
+            stream_index = i as i32;
             break;
         }
     }
