@@ -1,26 +1,20 @@
 mod adb;
-mod tcp_client;
-mod utils;
-mod video;
 mod mux;
+mod video;
 
-use tcp_client::connect_to_server;
 use adb::start_scrcpy_server;
-use mux::spawn_mux_channel;
-use anyhow::Result;
+use mux::start_muxed_stream;
+use video::start_video_stream;
 
-fn main() -> Result<()> {
-    println!("Starting MirrOx Server...");
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Start scrcpy-server
+    start_scrcpy_server("v3.2")?;
 
-    start_scrcpy_server()?;
-    let tcp_stream = connect_to_server()?;
-    println!("[*] Connected to server successfully.");
+    // Connect to server and receive video byte stream
+    let receiver = start_muxed_stream()?;
 
-    // Start muxer thread to demux packets
-    let receiver = spawn_mux_channel(tcp_stream)?;
-
-    // Start the video decoder/renderer
-    video::start_video_stream(receiver)?;
+    // Decode and render video
+    start_video_stream(receiver)?;
 
     Ok(())
 }
