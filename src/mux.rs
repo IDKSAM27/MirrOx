@@ -1,40 +1,56 @@
+use crossbeam_channel::{bounded, Receiver};
 use std::collections::VecDeque;
-use std::io::{Read, Result, Seek, SeekFrom};
+use std::io::{Read, Result as IoResult};
+use std::net::TcpStream;
+use std::os::raw::{c_int, c_void};
+
+pub fn start_muxed_stream() -> IoResult<Receiver<Vec<u8>>> {
+    let mut stream = TcpStream::connect("127.0.0.1:27183")?;
+    let (sender, receiver) = bounded::<Vec<u8>>(32);
+
+    std::thread::spawn(move || {
+        let mut buffer = [0u8; 4096];
+        while let Ok(len) = stream.read(&mut buffer) {
+            if len == 0 {
+                break;
+            }
+            let _ = sender.send(buffer[..len].to_vec());
+        }
+    });
+
+    Ok(receiver)
+}
 
 pub struct FifoIO {
-    buffer: VecDeque<u8>,
+    queue: VecDeque<u8>,
+    receiver: Receiver<Vec<u8>>,
 }
 
 impl FifoIO {
-    pub fn new() -> Self {
+    pub fn new(receiver: Receiver<Vec<u8>>) -> Self {
         Self {
-            buffer: VecDeque::new(),
+            queue: VecDeque::new(),
+            receiver,
         }
     }
 
-    pub fn push_data(&mut self, data: &[u8]) {
-        self.buffer.extend(data);
-    }
-}
+    pub extern "C" fn read_packet(opaque: *mut c_void, buf: *mut u8, buf_size: c_int) -> c_int {
+        let fifo = unsafe { &mut *(opaque as *mut FifoIO) };
 
-impl Read for FifoIO {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let n = std::cmp::min(buf.len(), self.buffer.len());
-        for i in 0..n {
-            if let Some(b) = self.buffer.pop_front() {
-                buf[i] = b;
+        while fifo.queue.len() < buf_size as usize {
+            match fifo.receiver.recv() {
+                Ok(data) => fifo.queue.extend(data),
+                Err(_) => break,
             }
         }
-        Ok(n)
-    }
-}
 
-impl Seek for FifoIO {
-    fn seek(&mut self, pos: SeekFrom) -> Result<u64> {
-        match pos {
-            SeekFrom::Start(_) => Ok(0),
-            SeekFrom::End(_) => Ok(0),
-            SeekFrom::Current(_) => Ok(0),
+        let len = buf_size.min(fifo.queue.len() as i32);
+        for i in 0..len as usize {
+            unsafe {
+                *buf.add(i) = fifo.queue.pop_front().unwrap();
+            }
         }
+
+        len
     }
 }
