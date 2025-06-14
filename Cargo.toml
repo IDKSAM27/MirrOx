@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 crossbeam-channel = "0.5"
-sdl2 = "0.36"
+sdl2 = "0.37"
 ffmpeg-next = "7.1.0"
 ffmpeg-sys-next = "7.1.0"
 
