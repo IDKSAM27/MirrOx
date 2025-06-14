@@ -505,5 +505,11 @@ HUGE commit incomming. (revert checkpoint)
 
 went with:
     sdl2 = { version = "0.35.2", features = ["bundled"] }
-    
+
+Current (as of today) Run Flow:
+    main.rs starts the ADB server
+    It connects to TCP stream on 127.0.0.1:27183
+    That TCP byte stream goes into crossbeam_channel
+    video.rs reads via FifoIO, decodes with FFmpeg, renders with SDL2
+
 ---------------------------------------------------------------------------------------------------------------------------------

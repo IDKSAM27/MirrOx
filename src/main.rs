@@ -2,7 +2,7 @@ mod adb;
 mod mux;
 mod video;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // 1. Start scrcpy server over ADB
     adb::start_scrcpy_server("v3.2")?;
 
