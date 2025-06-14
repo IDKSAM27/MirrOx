@@ -14,7 +14,9 @@ pub fn start_muxed_stream() -> IoResult<Receiver<Vec<u8>>> {
             if len == 0 {
                 break;
             }
-            let _ = sender.send(buffer[..len].to_vec());
+            if sender.send(buffer[..len].to_vec()).is_err() {
+                break;
+            }
         }
     });
 
@@ -23,7 +25,7 @@ pub fn start_muxed_stream() -> IoResult<Receiver<Vec<u8>>> {
 
 pub struct FifoIO {
     queue: VecDeque<u8>,
-    receiver: Receiver<Vec<u8>>,
+    pub receiver: Receiver<Vec<u8>>,
 }
 
 impl FifoIO {
@@ -51,6 +53,7 @@ impl FifoIO {
             }
         }
 
+        println!("[mux] read_packet: delivered {} bytes", len);
         len
     }
 }
