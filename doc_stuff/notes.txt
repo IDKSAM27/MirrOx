@@ -500,3 +500,8 @@ I'll be using two seperate TCP Sockets,
     -> One for control/clipboard/device messages
 
 HUGE commit incomming. (revert checkpoint)
+
+08-14/06/2025
+
+went with:
+    sdl2 = { version = "0.35.2", features = ["bundled"] }
