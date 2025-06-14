@@ -2,19 +2,18 @@ mod adb;
 mod mux;
 mod video;
 
-use adb::start_scrcpy_server;
-use mux::start_muxed_stream;
-use video::start_video_stream;
-
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Start scrcpy-server
-    start_scrcpy_server("v3.2")?;
+    // 1. Start scrcpy server over ADB
+    adb::start_scrcpy_server("v3.2")?;
 
-    // Connect to server and receive video byte stream
-    let receiver = start_muxed_stream()?;
+    // 2. Delay a bit to allow the server to boot
+    std::thread::sleep(std::time::Duration::from_millis(1000));
 
-    // Decode and render video
-    start_video_stream(receiver)?;
+    // 3. Start TCP stream and get video byte receiver
+    let receiver = mux::start_muxed_stream()?;
+
+    // 4. Start decoding and rendering
+    video::start_video_stream(receiver)?;
 
     Ok(())
 }
