@@ -1,39 +1,36 @@
-use std::collections::VecDeque;
-use std::ffi::CStr;
 use std::os::raw::{c_int, c_uchar, c_void};
 use std::ptr;
 
 use crossbeam_channel::Receiver;
 use ffmpeg_next::{
-    codec, decoder, format, frame::Video, media::Type,
+    codec,
+    decoder::Video as VideoDecoder,
+    format::{self, context::Input},
+    frame::Video,
+    media::Type,
     software::scaling::{context::Context as Scaler, flag::Flags},
-    util::error::ResultExt,
 };
 use ffmpeg_sys_next::{
-    avformat_alloc_context, avformat_close_input, avformat_find_stream_info,
-    avformat_open_input, avio_alloc_context, AVFormatContext, AVIO_FLAG_READ,
+    avformat_alloc_context, avformat_find_stream_info, avformat_open_input,
+    avio_alloc_context,
 };
 
 use sdl2::{event::Event, pixels::PixelFormatEnum, rect::Rect};
 
 use crate::mux::FifoIO;
 
-/// This buffer size controls how much data FFmpeg reads per request.
 const BUFFER_SIZE: usize = 4096;
 
-/// Start the video stream decoding and rendering loop.
 pub fn start_video_stream(receiver: Receiver<Vec<u8>>) -> Result<(), Box<dyn std::error::Error>> {
     ffmpeg_next::init().unwrap();
 
     let mut fifo = Box::new(FifoIO::new(receiver));
     let fifo_ptr = &mut *fifo as *mut FifoIO as *mut c_void;
 
-    // Allocate buffer for AVIOContext
     let buffer = vec![0u8; BUFFER_SIZE];
     let buffer_ptr = buffer.as_ptr() as *mut c_uchar;
-    std::mem::forget(buffer); // FFmpeg takes ownership
+    std::mem::forget(buffer); // FFmpeg owns this memory
 
-    // Create custom AVIOContext
     let avio_ctx = unsafe {
         avio_alloc_context(
             buffer_ptr,
@@ -49,7 +46,6 @@ pub fn start_video_stream(receiver: Receiver<Vec<u8>>) -> Result<(), Box<dyn std
         return Err("Failed to allocate AVIOContext".into());
     }
 
-    // Allocate and set up AVFormatContext
     let fmt_ctx = unsafe { avformat_alloc_context() };
     if fmt_ctx.is_null() {
         return Err("Failed to allocate AVFormatContext".into());
@@ -59,18 +55,19 @@ pub fn start_video_stream(receiver: Receiver<Vec<u8>>) -> Result<(), Box<dyn std
         (*fmt_ctx).pb = avio_ctx;
     }
 
-    // Now open the input using custom AVIO
-    if unsafe { avformat_open_input(&mut (fmt_ctx as *mut _), ptr::null(), ptr::null_mut(), ptr::null_mut()) } < 0 {
+    if unsafe {
+        avformat_open_input(&mut (fmt_ctx as *mut _), ptr::null(), ptr::null_mut(), ptr::null_mut())
+    } < 0
+    {
         return Err("Failed to open input from AVIO".into());
     }
 
-    // Find stream info
     if unsafe { avformat_find_stream_info(fmt_ctx, ptr::null_mut()) } < 0 {
         return Err("Failed to find stream info".into());
     }
 
-    // Wrap in high-level `ffmpeg_next` object
-    let mut context = unsafe { format::context::Input::from_raw(fmt_ctx) };
+    // Correct usage: wrap the raw pointer
+    let mut context = unsafe { Input::wrap(fmt_ctx) };
 
     let input = context
         .streams()
@@ -81,11 +78,8 @@ pub fn start_video_stream(receiver: Receiver<Vec<u8>>) -> Result<(), Box<dyn std
     let codec_params = input.parameters();
     let codec_id = codec_params.id();
 
-    let decoder = codec::decoder::find(codec_id)
-        .ok_or("Decoder not found")?
-        .open()?;
-
-    let mut decoder = decoder.decoder().video()?;
+    let codec = codec::decoder::find(codec_id).ok_or("Decoder not found")?;
+    let mut decoder = codec.decoder().video()?;
 
     let mut scaler = Scaler::get(
         decoder.format(),
