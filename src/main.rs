@@ -1,16 +1,20 @@
 mod adb;
 mod mux;
-mod tcp_client;
 mod video;
+mod tcp_client;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server_version = "v3.2";
+    // 1. Start server
+    adb::start_scrcpy_server("v3.2")?;
 
-    adb::start_scrcpy_server(server_version)?;
-    let _tcp_stream = tcp_client::connect_to_server()?; // Just to trigger server handshake
+    // 2. Connect TCP and send "client hello"
+    let _tcp = tcp_client::connect_to_server()?; // sends client hello
 
-    let video_receiver = mux::start_muxed_stream()?;
-    video::start_video_stream(video_receiver)?;
+    // 3. Begin demuxing the stream
+    let receiver = mux::start_muxed_stream()?;
+
+    // 4. Begin decoding and rendering
+    video::start_video_stream(receiver)?;
 
     Ok(())
 }

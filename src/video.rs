@@ -1,136 +1,144 @@
-use ffmpeg_next::{
-    codec, decoder, format,
-    frame::Video,
-    software::scaling::{context::Context as Scaler, flag::Flags},
-    util::format::pixel::Pixel,
-};
-use ffmpeg_sys_next as ffmpeg_sys;
-use sdl2::{
-    event::Event,
-    pixels::PixelFormatEnum,
-    rect::Rect,
-    render::TextureAccess,
-};
 use std::collections::VecDeque;
-use std::ffi::CString;
+use std::ffi::CStr;
+use std::os::raw::{c_int, c_uchar, c_void};
 use std::ptr;
-use std::time::Duration;
 
 use crossbeam_channel::Receiver;
+use ffmpeg_next::{
+    codec, decoder, format, frame::Video, media::Type,
+    software::scaling::{context::Context as Scaler, flag::Flags},
+    util::error::ResultExt,
+};
+use ffmpeg_sys_next::{
+    avformat_alloc_context, avformat_close_input, avformat_find_stream_info,
+    avformat_open_input, avio_alloc_context, AVFormatContext, AVIO_FLAG_READ,
+};
+
+use sdl2::{event::Event, pixels::PixelFormatEnum, rect::Rect};
+
 use crate::mux::FifoIO;
 
+/// This buffer size controls how much data FFmpeg reads per request.
+const BUFFER_SIZE: usize = 4096;
+
+/// Start the video stream decoding and rendering loop.
 pub fn start_video_stream(receiver: Receiver<Vec<u8>>) -> Result<(), Box<dyn std::error::Error>> {
-    ffmpeg_next::init()?;
-    let sdl_context = sdl2::init()?;
-    let video_subsystem = sdl_context.video()?;
+    ffmpeg_next::init().unwrap();
 
-    let window = video_subsystem
-        .window("MirrOx", 1280, 720)
-        .position_centered()
-        .opengl()
-        .build()?;
+    let mut fifo = Box::new(FifoIO::new(receiver));
+    let fifo_ptr = &mut *fifo as *mut FifoIO as *mut c_void;
 
-    let mut canvas = window.into_canvas().build()?;
-    let texture_creator = canvas.texture_creator();
-    let mut texture = texture_creator.create_texture_streaming(
-        PixelFormatEnum::YV12,
-        1280,
-        720,
-    )?;
+    // Allocate buffer for AVIOContext
+    let buffer = vec![0u8; BUFFER_SIZE];
+    let buffer_ptr = buffer.as_ptr() as *mut c_uchar;
+    std::mem::forget(buffer); // FFmpeg takes ownership
 
-    let mut event_pump = sdl_context.event_pump()?;
-
-    // Setup AVIOContext with custom reader
-    let mut fifo = FifoIO::new(receiver);
-    let buffer_size = 4096;
-    let avio_ctx_buffer = unsafe { ffmpeg_sys::av_malloc(buffer_size) as *mut u8 };
-
-    let avio = unsafe {
-        ffmpeg_sys::avio_alloc_context(
-            avio_ctx_buffer,
-            buffer_size as i32,
+    // Create custom AVIOContext
+    let avio_ctx = unsafe {
+        avio_alloc_context(
+            buffer_ptr,
+            BUFFER_SIZE as c_int,
             0,
-            &mut fifo as *mut _ as *mut _,
+            fifo_ptr,
             Some(FifoIO::read_packet),
             None,
             None,
         )
     };
-
-    if avio.is_null() {
-        return Err("Failed to create AVIOContext".into());
+    if avio_ctx.is_null() {
+        return Err("Failed to allocate AVIOContext".into());
     }
 
-    let mut fmt_ctx = unsafe { ffmpeg_sys::avformat_alloc_context() };
+    // Allocate and set up AVFormatContext
+    let fmt_ctx = unsafe { avformat_alloc_context() };
     if fmt_ctx.is_null() {
         return Err("Failed to allocate AVFormatContext".into());
     }
 
-    unsafe { (*fmt_ctx).pb = avio };
-
-    if unsafe {
-        ffmpeg_sys::avformat_open_input(&mut fmt_ctx, ptr::null(), ptr::null_mut(), ptr::null_mut())
-    } < 0
-    {
-        return Err("Failed to open input".into());
+    unsafe {
+        (*fmt_ctx).pb = avio_ctx;
     }
 
-    if unsafe { ffmpeg_sys::avformat_find_stream_info(fmt_ctx, ptr::null_mut()) } < 0 {
+    // Now open the input using custom AVIO
+    if unsafe { avformat_open_input(&mut (fmt_ctx as *mut _), ptr::null(), ptr::null_mut(), ptr::null_mut()) } < 0 {
+        return Err("Failed to open input from AVIO".into());
+    }
+
+    // Find stream info
+    if unsafe { avformat_find_stream_info(fmt_ctx, ptr::null_mut()) } < 0 {
         return Err("Failed to find stream info".into());
     }
 
-    let mut video_stream_index = -1;
-    for i in 0..unsafe { (*fmt_ctx).nb_streams } {
-        let stream = unsafe { *(*fmt_ctx).streams.add(i as usize) };
-        let codecpar = unsafe { *stream.codecpar };
-        if codecpar.codec_type == ffmpeg_sys::AVMediaType::AVMEDIA_TYPE_VIDEO {
-            video_stream_index = i as i32;
-            break;
-        }
-    }
+    // Wrap in high-level `ffmpeg_next` object
+    let mut context = unsafe { format::context::Input::from_raw(fmt_ctx) };
 
-    if video_stream_index == -1 {
-        return Err("No video stream found".into());
-    }
+    let input = context
+        .streams()
+        .best(Type::Video)
+        .ok_or("No video stream found")?;
 
-    let stream = unsafe { *(*fmt_ctx).streams.add(video_stream_index as usize) };
-    let codec_id = unsafe { (*stream.codecpar).codec_id };
+    let video_stream_index = input.index();
+    let codec_params = input.parameters();
+    let codec_id = codec_params.id();
+
     let decoder = codec::decoder::find(codec_id)
         .ok_or("Decoder not found")?
         .open()?;
-    let mut context = decoder::Video::from_codec(decoder);
+
+    let mut decoder = decoder.decoder().video()?;
 
     let mut scaler = Scaler::get(
-        context.format(),
-        context.width(),
-        context.height(),
-        Pixel::YUV420P,
-        context.width(),
-        context.height(),
+        decoder.format(),
+        decoder.width(),
+        decoder.height(),
+        ffmpeg_next::format::Pixel::RGB24,
+        decoder.width(),
+        decoder.height(),
         Flags::BILINEAR,
     )?;
 
-    let mut decoded = Video::empty();
-    let mut rgb_frame = Video::empty();
+    let sdl = sdl2::init()?;
+    let video = sdl.video()?;
+    let window = video
+        .window("MirrOx", decoder.width() as u32, decoder.height() as u32)
+        .position_centered()
+        .opengl()
+        .build()?;
+    let mut canvas = window.into_canvas().build()?;
+    let texture_creator = canvas.texture_creator();
+    let mut texture = texture_creator
+        .create_texture_streaming(PixelFormatEnum::RGB24, decoder.width(), decoder.height())?;
 
-    'main: loop {
-        for event in event_pump.poll_iter() {
-            if let Event::Quit { .. } = event {
-                break 'main;
+    let mut event_pump = sdl.event_pump()?;
+    let mut packet = ffmpeg_next::Packet::empty();
+
+    while context.read_packet(&mut packet).is_ok() {
+        if packet.stream() != video_stream_index {
+            continue;
+        }
+
+        if decoder.send_packet(&packet).is_ok() {
+            let mut frame = Video::empty();
+            while decoder.receive_frame(&mut frame).is_ok() {
+                let mut rgb_frame = Video::empty();
+                scaler.run(&frame, &mut rgb_frame)?;
+
+                texture.update(
+                    None,
+                    rgb_frame.data(0),
+                    rgb_frame.stride(0),
+                )?;
+
+                canvas.clear();
+                canvas.copy(&texture, None, Some(Rect::new(0, 0, decoder.width(), decoder.height())))?;
+                canvas.present();
             }
         }
 
-        let mut packet = ffmpeg_next::Packet::empty();
-        if context.receive_frame(&mut decoded).is_ok() {
-            scaler.run(&decoded, &mut rgb_frame)?;
-            let data = rgb_frame.data(0);
-
-            texture.update(None, data, rgb_frame.stride(0) as usize)?;
-            canvas.clear();
-            canvas.copy(&texture, None, Some(Rect::new(0, 0, 1280, 720)))?;
-            canvas.present();
-        } else {
-            std::thread::sleep(Duration::from_millis(10));
+        for event in event_pump.poll_iter() {
+            if let Event::Quit { .. } = event {
+                return Ok(());
+            }
         }
     }
 
