@@ -368,6 +368,106 @@ pub fn start_video_stream(rx: Receiver<Vec<u8>>) -> Result<(), Box<dyn std::erro
 
     Ok(())
 }
+use std::os::raw::{c_int, c_uchar, c_void};
+use std::ptr;
+use std::slice;
+use std::sync::Arc;
+
+use crossbeam_channel::Receiver;
+use ffmpeg_next::{
+    codec,
+    codec::traits::Decoder,
+    format::{self, context::Input},
+    frame,
+    media,
+    software::scaling::{context::Context as Scaler, flag::Flags},
+    util::format::pixel::Pixel,
+};
+use sdl2::{render::Canvas, video::Window, EventPump};
+
+use crate::mux::FifoIO;
+
+pub fn start_video_stream(receiver: Receiver<u8>, canvas: &mut Canvas<Window>, event_pump: &mut EventPump) -> Result<(), Box<dyn std::error::Error>> {
+    ffmpeg_next::init().unwrap();
+
+    // Create FifoIO for FFmpeg's custom AVIOContext
+    let mut fifo_io = FifoIO::new(receiver);
+    let mut fmt_ctx = fifo_io.open_format_context()?;
+
+    fmt_ctx.find_stream_info(None)?;
+
+    let input_stream = fmt_ctx
+        .streams()
+        .best(media::Type::Video)
+        .ok_or("Could not find video stream")?;
+
+    let codec_params = input_stream.parameters();
+    let decoder_codec = codec::decoder::find(codec_params.id())
+        .ok_or("Decoder not found")?;
+
+    let mut decoder = decoder_codec.decoder().video()?;
+    decoder.open_with(codec_params)?;
+
+    let mut scaler = Scaler::get(
+        decoder.format(),
+        decoder.width(),
+        decoder.height(),
+        Pixel::RGBA,
+        decoder.width(),
+        decoder.height(),
+        Flags::BILINEAR,
+    )?;
+
+    let texture_creator = canvas.texture_creator();
+    let mut texture = texture_creator.create_texture_streaming(
+        PixelFormatEnum::RGBA32,
+        decoder.width(),
+        decoder.height(),
+    )?;
+
+    let mut frame_index = 0;
+    for (stream, packet) in fmt_ctx.packets() {
+        if stream.index() != input_stream.index() {
+            continue;
+        }
+
+        decoder.send_packet(&packet)?;
+        let mut decoded = frame::Video::empty();
+
+        while decoder.receive_frame(&mut decoded).is_ok() {
+            let mut rgb_frame = frame::Video::empty();
+            scaler.run(&decoded, &mut rgb_frame)?;
+
+            let data = rgb_frame.data(0);
+            let linesize = rgb_frame.stride(0);
+
+            texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+                for y in 0..decoder.height() {
+                    let src = &data[(y * linesize) as usize..((y + 1) * linesize) as usize];
+                    let dst = &mut buffer[(y * pitch) as usize..((y + 1) * pitch) as usize];
+                    dst[..decoder.width() as usize * 4].copy_from_slice(&src[..decoder.width() as usize * 4]);
+                }
+            })?;
+
+            canvas.clear();
+            canvas.copy(&texture, None, None)?;
+            canvas.present();
+
+            frame_index += 1;
+
+            // Handle basic SDL2 events (close on window quit)
+            for event in event_pump.poll_iter() {
+                match event {
+                    sdl2::event::Event::Quit { .. } => return Ok(()),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    decoder.send_eof()?;
+    Ok(())
+}
 
         .create_texture_streaming(PixelFormatEnum::RGB24, decoder.width(), decoder.height())?;
 
