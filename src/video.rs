@@ -4,7 +4,7 @@ use crossbeam_channel::Receiver;
 use ffmpeg_next::{
     codec,
     codec::traits::Decoder,
-    format::{self, context::Input},
+    format,
     frame::Video,
     media::Type,
     software::scaling::{context::Context as Scaler, flag::Flags},
@@ -15,14 +15,19 @@ use sdl2::{pixels::PixelFormatEnum, render::Canvas, video::Window, EventPump};
 use crate::mux::FifoIO;
 
 pub fn start_video_stream(
-    receiver: Receiver<u8>,
+    receiver: Receiver<Vec<u8>>, // ✅ FIXED TYPE
     canvas: &mut Canvas<Window>,
     _event_pump: &mut EventPump,
 ) -> Result<(), Box<dyn std::error::Error>> {
     ffmpeg_next::init()?;
 
     let mut fifo_io = FifoIO::new(receiver);
-    let mut fmt_ctx = fifo_io.open_format_context()?;
+
+    // Option 1: If you have open_format_context in mux.rs
+    // let mut fmt_ctx = fifo_io.open_format_context()?;
+
+    // ✅ Option 2: If not, fallback to ffmpeg-next built-in method
+    let mut fmt_ctx = format::input(&mut fifo_io)?;
 
     fmt_ctx.find_stream_info(None)?;
 
@@ -33,8 +38,7 @@ pub fn start_video_stream(
 
     let codec_params = input_stream.parameters();
     let decoder_codec = codec::decoder::find(codec_params.id()).ok_or("Codec not found")?;
-
-    let mut decoder = decoder_codec.decoder().video()?;
+    let mut decoder = decoder_codec.video()?;
     decoder.open_with(codec_params)?;
 
     let width = decoder.width();

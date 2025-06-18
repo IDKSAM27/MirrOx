@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let receiver = mux::start_muxed_stream()?;
 
     // 4. Begin decoding and rendering
-    video::start_video_stream(receiver)?;
+    video::start_video_stream(receiver, &mut canvas, &mut event_pump)?;
 
     Ok(())
 }
