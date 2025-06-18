@@ -240,7 +240,135 @@ pub fn start_video_stream(receiver: Receiver<Vec<u8>>) -> Result<(), Box<dyn std
     Ok(())
 }
 ;
-    let mut texture = texture_creator
+    let mut texture = texture_creatoruse std::os::raw::{c_int, c_uchar, c_void};
+use std::ptr;
+use std::slice;
+use std::sync::Arc;
+use std::thread;
+
+use crossbeam_channel::Receiver;
+use ffmpeg_next::{
+    codec,
+    codec::traits::Decoder,
+    format::{self, context::Input},
+    frame,
+    media,
+    software::scaling::{context::Context as Scaler, flag::Flags},
+    util::format::pixel::Pixel,
+};
+use sdl2::{event::Event, pixels::PixelFormatEnum, rect::Rect};
+
+use crate::mux::FifoIO;
+
+pub fn start_video_stream(rx: Receiver<Vec<u8>>) -> Result<(), Box<dyn std::error::Error>> {
+    ffmpeg_next::init().unwrap();
+
+    // Setup SDL2
+    let sdl_context = sdl2::init()?;
+    let video_subsystem = sdl_context.video()?;
+    let window = video_subsystem
+        .window("MirrOx - Screen Stream", 1280, 720)
+        .position_centered()
+        .resizable()
+        .build()?;
+    let mut canvas = window.into_canvas().accelerated().build()?;
+    let texture_creator = canvas.texture_creator();
+    let mut event_pump = sdl_context.event_pump()?;
+
+    // Wrap the rx in a FifoIO (custom AVIOContext buffer source)
+    let fifo = Arc::new(FifoIO::new(rx));
+    let mut avio_ctx = fifo.create_avio_context()?;
+
+    // Allocate AVFormatContext manually
+    let fmt_ctx = unsafe { ffmpeg_next::ffi::avformat_alloc_context() };
+    if fmt_ctx.is_null() {
+        return Err("Failed to allocate AVFormatContext".into());
+    }
+
+    // Hook the AVIOContext to it
+    unsafe {
+        (*fmt_ctx).pb = avio_ctx.as_mut_ptr();
+    }
+
+    // Open input using custom IO
+    let mut input_ctx = unsafe { Input::wrap(fmt_ctx) };
+
+    // Read stream info
+    input_ctx.find_stream_info(None)?;
+
+    // Find video stream index
+    let stream_index = input_ctx
+        .streams()
+        .best(media::Type::Video)
+        .ok_or("No video stream found")?
+        .index();
+
+    let stream = input_ctx.stream(stream_index).ok_or("Stream not found")?;
+    let codec_params = stream.parameters();
+    let codec_id = codec_params.id();
+    let decoder_codec = codec::decoder::find(codec_id).ok_or("Decoder not found")?;
+    let mut decoder = decoder_codec.decoder().video()?;
+
+    decoder.set_parameters(codec_params)?;
+    decoder.open()?;
+
+    // Setup scaler and frame containers
+    let mut scaler = Scaler::get(
+        decoder.format(),
+        decoder.width(),
+        decoder.height(),
+        Pixel::RGB24,
+        decoder.width(),
+        decoder.height(),
+        Flags::BILINEAR,
+    )?;
+
+    let mut rgb_frame = frame::Video::empty();
+    let mut decoded = frame::Video::empty();
+
+    let mut texture = texture_creator.create_texture_streaming(
+        PixelFormatEnum::RGB24,
+        decoder.width(),
+        decoder.height(),
+    )?;
+
+    // Main decoding and rendering loop
+    for (i, packet) in input_ctx.packets().enumerate() {
+        if packet.stream_index() != stream_index {
+            continue;
+        }
+
+        decoder.send_packet(&packet)?;
+        while decoder.receive_frame(&mut decoded).is_ok() {
+            scaler.run(&decoded, &mut rgb_frame)?;
+
+            let data = rgb_frame.data(0);
+            let linesize = rgb_frame.stride(0);
+
+            texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+                for y in 0..decoder.height() {
+                    let src = &data[(y * linesize) as usize..((y + 1) * linesize) as usize];
+                    let dst = &mut buffer[(y * pitch) as usize..(y + 1) * pitch as usize];
+                    dst[..decoder.width() as usize * 3].copy_from_slice(&src[..decoder.width() as usize * 3]);
+                }
+            })?;
+
+            canvas.clear();
+            canvas.copy(&texture, None, Some(Rect::new(0, 0, decoder.width(), decoder.height())))?;
+            canvas.present();
+        }
+
+        // Exit if the window is closed
+        for event in event_pump.poll_iter() {
+            if let Event::Quit { .. } = event {
+                return Ok(());
+            }
+        }
+    }
+
+    Ok(())
+}
+
         .create_texture_streaming(PixelFormatEnum::RGB24, decoder.width(), decoder.height())?;
 
     let mut event_pump = sdl.event_pump()?;
