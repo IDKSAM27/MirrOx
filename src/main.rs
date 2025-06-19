@@ -3,38 +3,42 @@ mod mux;
 mod tcp_stream;
 mod video;
 
-use mux::FifoIO;
-use std::error::Error;
+use crossbeam_channel::unbounded;
+use mux::start_muxing;
+use sdl2::event::Event;
+use sdl2::video::Window;
+use sdl2::render::Canvas;
+use sdl2::Sdl;
+use std::time::Duration;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    // Setup ADB and forward port
-    adb::start_scrcpy_server()?;
-    adb::adb_forward_port()?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Start scrcpy server
+    adb::start_scrcpy_server("3.2")?;
+    adb::adb_forward_port()?; // forwards 27183
 
-    // Connect to TCP stream
+    // Connect to server (starts stream)
     let stream = tcp_stream::connect_scrcpy()?;
-    let (sender, receiver) = crossbeam_channel::bounded(100);
 
-    // Start mux thread
-    std::thread::spawn(move || {
-        if let Err(e) = mux::start_mux(stream, sender) {
-            eprintln!("[mux] Error: {e}");
-        }
-    });
-
-    // Setup SDL2
-    let sdl_context = sdl2::init()?;
+    // Set up SDL2
+    let sdl_context: Sdl = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
     let window = video_subsystem
         .window("MirrOx", 1280, 720)
         .position_centered()
+        .resizable()
         .opengl()
         .build()?;
-
-    let mut canvas = window.into_canvas().build()?;
+    let mut canvas: Canvas<Window> = window.into_canvas().present_vsync().build()?;
     let mut event_pump = sdl_context.event_pump()?;
 
-    // Start video decoding and rendering
+    // Channel for mux -> video
+    let (sender, receiver) = unbounded();
+
+    // Start muxing thread
+    start_muxing(stream, sender);
+
+    // Start video loop
     video::start_video_stream(receiver, &mut canvas, &mut event_pump)?;
+
     Ok(())
 }
