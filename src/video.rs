@@ -1,7 +1,7 @@
 use crossbeam_channel::Receiver;
 use ffmpeg_next::{
-    codec::{self, decoder::Video as VideoDecoder, Context as CodecContext},
-    format::{self, context::Input, io::IO},
+    codec::{self, decoder::Video as VideoDecoder},
+    format::{self, context::Input},
     frame::Video,
     media::Type,
     software::scaling::{context::Context as Scaler, flag::Flags},
@@ -20,9 +20,7 @@ pub fn start_video_stream(
     ffmpeg_next::init()?;
 
     let mut fifo_io = FifoIO::new(receiver);
-    let mut fmt_ctx = Input::from_custom(fifo_io, 4096)?;
-    fmt_ctx.set_metadata("title", "MirrOx");
-    fmt_ctx.set_metadata("service_name", "scrcpy");
+    let mut fmt_ctx = format::input(&mut fifo_io)?;
 
     let input = fmt_ctx.streams().best(Type::Video).ok_or("No video stream found")?;
     let stream_index = input.index();
@@ -31,7 +29,7 @@ pub fn start_video_stream(
     let decoder_codec = codec::decoder::find(codec_params.codec_id())
         .ok_or("Decoder not found")?;
 
-    let mut decoder: VideoDecoder = decoder_codec.open_as(codec_params)?;
+    let mut decoder: VideoDecoder = VideoDecoder::from_context(codec_params.clone())?;
 
     let width = decoder.width();
     let height = decoder.height();
@@ -44,7 +42,7 @@ pub fn start_video_stream(
     let mut texture = texture_creator.create_texture_streaming(PixelFormatEnum::RGB24, width, height)?;
 
     let mut decoded = Video::empty();
-    for (i, packet) in fmt_ctx.packets().enumerate() {
+    for packet in fmt_ctx.packets() {
         let packet = packet?;
         if packet.stream() != stream_index {
             continue;
