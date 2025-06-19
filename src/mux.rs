@@ -1,50 +1,32 @@
+use std::io::{Read, Result as IoResult};
 use crossbeam_channel::Receiver;
-use crossbeam_channel::Sender;
-use std::collections::VecDeque;
-use std::io::{Read, Result};
-use std::net::TcpStream;
 
 pub struct FifoIO {
     receiver: Receiver<u8>,
-    buffer: VecDeque<u8>,
+    buffer: Vec<u8>,
 }
 
 impl FifoIO {
     pub fn new(receiver: Receiver<u8>) -> Self {
-        FifoIO {
+        Self {
             receiver,
-            buffer: VecDeque::with_capacity(8192),
+            buffer: Vec::new(),
         }
     }
 }
 
 impl Read for FifoIO {
-    fn read(&mut self, out: &mut [u8]) -> Result<usize> {
-        while self.buffer.len() < out.len() {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        while self.buffer.len() < buf.len() {
             match self.receiver.recv() {
-                Ok(byte) => self.buffer.push_back(byte),
+                Ok(byte) => self.buffer.push(byte),
                 Err(_) => break,
             }
         }
 
-        let n = std::cmp::min(out.len(), self.buffer.len());
-        for i in 0..n {
-            out[i] = self.buffer.pop_front().unwrap();
-        }
+        let n = std::cmp::min(buf.len(), self.buffer.len());
+        buf[..n].copy_from_slice(&self.buffer[..n]);
+        self.buffer.drain(..n);
         Ok(n)
     }
-}
-
-pub fn start_mux(mut stream: TcpStream, sender: Sender<u8>) -> Result<()> {
-    let mut buffer = [0u8; 4096];
-    loop {
-        let n = stream.read(&mut buffer)?;
-        if n == 0 {
-            break;
-        }
-        for &byte in &buffer[..n] {
-            sender.send(byte).unwrap();
-        }
-    }
-    Ok(())
 }
