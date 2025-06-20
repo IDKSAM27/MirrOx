@@ -297,6 +297,7 @@ dependencies = [
  "cfg-if",
  "cmake",
  "libc",
+ "pkg-config",
  "version-compare",
 ]
 
