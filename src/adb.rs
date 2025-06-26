@@ -2,8 +2,8 @@ use std::process::{Command, Stdio};
 use std::io::{self}; //Write
 use std::path::Path;
 
-const SCRCPY_SERVER_PATH: &str = "assets/scrcpy-server.jar";
-const DEVICE_PATH: &str = "/data/local/tmp/scrcpy-server.jar";
+const SCRCPY_SERVER_PATH: &str = "server/scrcpy-server-v3.2";
+const DEVICE_PATH: &str = "/data/local/tmp/scrcpy-server-v3.2";
 const SERVER_VERSION: &str = "1.25"; // I'll have to adjust according to the latest server version, later will write a script for the same.
 
 pub fn push_scrcpy_server() -> io::Result<()> {
@@ -22,7 +22,7 @@ pub fn start_scrcpy_server() -> io::Result<()> {
     let mut child = Command::new("adb")
         .args([
             "shell", 
-            "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
+            "CLASSPATH=/data/local/tmp/scrcpy-server-v3.2",
             "app_process", 
             "/", 
             "com.genymobile.scrcpy.Server", SERVER_VERSION, "log_level=info"
