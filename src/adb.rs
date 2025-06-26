@@ -1,5 +1,5 @@
 use std::process::{Command, Stdio};
-use std::io::{self, Write};
+use std::io::{self}; //Write
 use std::path::Path;
 
 const SCRCPY_SERVER_PATH: &str = "assets/scrcpy-server.jar";
@@ -20,8 +20,13 @@ pub fn push_scrcpy_server() -> io::Result<()> {
 
 pub fn start_scrcpy_server() -> io::Result<()> {
     let mut child = Command::new("adb")
-        .args(["shell", "CLASSPATH=/data/local/tmp/scrcpy-server.jar", \
-               "app_process", "/", "com.genymobile.scrcpy.Server", SERVER_VERSION])
+        .args([
+            "shell", 
+            "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
+            "app_process", 
+            "/", 
+            "com.genymobile.scrcpy.Server", SERVER_VERSION, "log_level=info"
+        ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()?;
