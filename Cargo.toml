@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+thiserror = "1.0"
 crossbeam-channel = "0.5"
 ffmpeg-next = "7.1.0"
 ffmpeg-sys-next = "7.1.0"
