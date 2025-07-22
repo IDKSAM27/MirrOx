@@ -1,29 +1,24 @@
-// src/mux.rs
-
 use std::net::TcpStream;
 use std::io::{self, Read};
 use std::thread;
-// --- THE STABLE SOLUTION ---
-// Use the dedicated crate for creating a custom FFmpeg input.
-use ffmpeg_next_io::demuxer::input;
+use ffmpeg_next as ffmpeg;
 use thiserror::Error;
 
 // --- Custom Error Type ---
 #[derive(Debug, Error)]
 pub enum MuxerError {
-    #[error("Failed to create I/O demuxer for FFmpeg: {0}")]
-    DemuxerCreationError(#[from] ffmpeg_next::Error),
+    #[error("Failed to create FFmpeg input from custom IO stream: {0}")]
+    InputCreationError(#[from] ffmpeg::Error),
 
     #[error("I/O error during stream bridging: {0}")]
     IoError(#[from] io::Error),
 }
 
-/// Bridges a TcpStream to a readable FFmpeg input context using `ffmpeg-next-io`.
+/// Bridges a TcpStream to a readable FFmpeg input context using a manual pipe.
 ///
-/// This function returns a fully prepared `ffmpeg_next::format::context::Input`,
-/// ready for the video decoder.
-pub fn bridge_stream(mut stream: TcpStream) -> Result<ffmpeg_next::format::context::Input, MuxerError> {
-    // We must still read the scrcpy-server header before passing the stream along.
+/// This function returns a fully prepared `ffmpeg_next::format::context::Input`.
+pub fn bridge_stream(mut stream: TcpStream) -> Result<ffmpeg::format::tcontext::Input, MuxerError> {
+    // As before, we must read the scrcpy-server header before doing anything else.
     let mut header_buffer = [0u8; 2]; // [stream_type, name_length]
     stream.read_exact(&mut header_buffer)?;
     
@@ -37,12 +32,27 @@ pub fn bridge_stream(mut stream: TcpStream) -> Result<ffmpeg_next::format::conte
         println!("Connected to device (no name provided).");
     }
 
-    // `input()` from ffmpeg-next-io takes our TcpStream and handles all the
-    // complex background threading and piping for us.
-    let ictx = input(stream)?;
+    // Create an in-memory pipe.
+    // `pipe_writer` is the end we write data into.
+    // `pipe_reader` is the end FFmpeg will read from.
+    let (pipe_reader, mut pipe_writer) = pipe::pipe();
 
+    // Spawn a dedicated thread to pump data from the TCP stream into the pipe.
+    thread::Builder::new()
+        .name("tcp-to-pipe-bridge".to_string())
+        .spawn(move || {
+            // `io::copy` efficiently transfers all bytes from the stream to the pipe writer
+            // until the connection is closed.
+            match io::copy(&mut stream, &mut pipe_writer) {
+                Ok(bytes) => println!("Bridge thread finished: copied {} bytes.", bytes),
+                Err(e) => eprintln!("Error in bridge thread: {}", e),
+            }
+        })?;
+
+    // Use FFmpeg's `Input::from_stream` to create a context directly from our pipe reader.
+    let ictx = ffmpeg::format::context::Input::from_stream(pipe_reader)?;
+    
     println!("Stream bridge created. Video data is now being piped to the FFmpeg context.");
-
-    // The `input` function returns the FFmpeg Input context directly.
+    
     Ok(ictx)
 }
