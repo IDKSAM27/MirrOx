@@ -1,25 +1,28 @@
 mod adb;
+mod tcp_stream;
 
 use adb::{AdbConfig, AdbSession};
+use std::net::TcpStream; // We'll need this type soon
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Create a configuration.
-    // We can use the default or customize it here.
+    // --- Phase 1: Setup ADB Session ---
+    // The responsibility of setting up the device is handled entirely by the adb module.
     let config = AdbConfig::default();
+    let _session = AdbSession::new(config.clone())?; // RAII handles cleanup
 
-    // 2. Initialize the session.
-    // The `_session` variable's lifetime controls the entire connection.
-    // When it's dropped at the end of `main`, cleanup is automatic.
-    let _session = AdbSession::new(config.clone())?; // Pass config
+    println!("ADB session established.");
 
-    println!("ADB session established. Port {} is ready.", config.local_port);
+    // --- Phase 2: Establish TCP Connection ---
+    // The responsibility of connecting is handled entirely by the tcp_stream module.
+    // We pass it the port from the config created in phase 1.
+    let stream: TcpStream = tcp_stream::connect(config.local_port)?;
+
+    println!("TCP connection successful. Stream is ready.");
+    println!("Next steps: Bridge stream to FFmpeg and start decoding.");
     println!("Press Ctrl+C to exit.");
-    
-    // The next step will be to create and use the TCP stream and video decoder here.
-    // For now, we just keep the application alive.
+
+    // The application loop will go here. For now, we just keep it alive.
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
-
-    // `_session` is dropped here, and `impl Drop for AdbSession` is called.
 }
