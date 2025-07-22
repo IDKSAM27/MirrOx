@@ -1,27 +1,27 @@
 mod adb;
 mod tcp_stream;
+mod mux;
 
 use adb::{AdbConfig, AdbSession};
-use std::net::TcpStream; // We'll need this type soon
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- Phase 1: Setup ADB Session ---
-    // The responsibility of setting up the device is handled entirely by the adb module.
     let config = AdbConfig::default();
-    let _session = AdbSession::new(config.clone())?; // RAII handles cleanup
-
+    let _session = AdbSession::new(config.clone())?;
     println!("ADB session established.");
 
     // --- Phase 2: Establish TCP Connection ---
-    // The responsibility of connecting is handled entirely by the tcp_stream module.
-    // We pass it the port from the config created in phase 1.
-    let stream: TcpStream = tcp_stream::connect(config.local_port)?;
+    let stream = tcp_stream::connect(config.local_port)?;
 
-    println!("TCP connection successful. Stream is ready.");
-    println!("Next steps: Bridge stream to FFmpeg and start decoding.");
+    // --- Phase 3: Bridge the Stream for Decoding ---
+    // The variable now holds an FFmpeg Input context directly.
+    let video_input_context = mux::bridge_stream(stream)?;
+
+    println!("Stream bridge is active. Ready for video decoding.");
+    println!("Next step: Initialize video decoder and SDL2 for rendering.");
     println!("Press Ctrl+C to exit.");
 
-    // The application loop will go here. For now, we just keep it alive.
+    // The application loop will go here.
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
