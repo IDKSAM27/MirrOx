@@ -1,25 +1,23 @@
 mod adb;
+mod tcp_stream;
+mod mux;
 
 use adb::{AdbConfig, AdbSession};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Create a configuration.
-    // We can use the default or customize it here.
     let config = AdbConfig::default();
+    let _session = AdbSession::new(config.clone())?;
+    println!("ADB session established.");
 
-    // 2. Initialize the session.
-    // The `_session` variable's lifetime controls the entire connection.
-    // When it's dropped at the end of `main`, cleanup is automatic.
-    let _session = AdbSession::new(config.clone())?; // Pass config
+    let stream = tcp_stream::connect(config.local_port)?;
 
-    println!("ADB session established. Port {} is ready.", config.local_port);
+    let video_input_context = mux::bridge_stream(stream)?;
+
+    println!("Stream bridge is active. Ready for video decoding.");
+    println!("Next step: Initialize video decoder and SDL2 for rendering.");
     println!("Press Ctrl+C to exit.");
     
-    // The next step will be to create and use the TCP stream and video decoder here.
-    // For now, we just keep the application alive.
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
-
-    // `_session` is dropped here, and `impl Drop for AdbSession` is called.
 }

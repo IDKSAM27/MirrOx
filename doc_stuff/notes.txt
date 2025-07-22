@@ -513,3 +513,21 @@ Current (as of today) Run Flow:
     video.rs reads via FifoIO, decodes with FFmpeg, renders with SDL2
 
 ---------------------------------------------------------------------------------------------------------------------------------
+
+21-22/07/2025
+
+Guess who's back?!!
+RAII design for adb forwarding, took a break and came back with some info from the researching.
+
+tcp_stream:
+    Following my agreed-upon "Coordinator-Worker" pattern, tcp_stream module will be a highly focused "Connection Worker." 
+    Its only job is to connect to the TCP port that our AdbSession has forwarded.
+
+    It's reusable module that can establish a TCP connection
+
+mux:
+    The Adapter/Bridge Worker (mux.rs)
+    Creating a "bridge" that takes our live TcpStream and adapts it into a format that the ffmpeg-next crate can read from. 
+    FFmpeg's API is designed to read from sources that implement the standard Read trait.
+     
+    However, a raw TcpStream can be difficult to work with directly in a separate thread.
