@@ -1,29 +1,29 @@
+// src/mux.rs
+
 use std::net::TcpStream;
 use std::io::{self, Read};
 use std::thread;
-// --- CORRECTED PATH ---
-// The `channel` function is now located in the input context module.
-use ffmpeg_next::format::context::input::channel;
+// --- THE STABLE SOLUTION ---
+// Use the dedicated crate for creating a custom FFmpeg input.
+use ffmpeg_next_io::demuxer::input;
 use thiserror::Error;
 
 // --- Custom Error Type ---
-// Updated to handle potential errors from ffmpeg_next directly.
 #[derive(Debug, Error)]
 pub enum MuxerError {
-    #[error("Failed to create I/O channel for FFmpeg: {0}")]
-    ChannelCreationError(#[from] ffmpeg_next::Error),
+    #[error("Failed to create I/O demuxer for FFmpeg: {0}")]
+    DemuxerCreationError(#[from] ffmpeg_next::Error),
 
     #[error("I/O error during stream bridging: {0}")]
     IoError(#[from] io::Error),
 }
 
-/// Bridges a TcpStream to a readable FFmpeg input context.
+/// Bridges a TcpStream to a readable FFmpeg input context using `ffmpeg-next-io`.
 ///
-/// This function now returns a fully prepared `ffmpeg_next::format::context::Input`,
-/// which is the object the decoder will use to find and read the video stream.
+/// This function returns a fully prepared `ffmpeg_next::format::context::Input`,
+/// ready for the video decoder.
 pub fn bridge_stream(mut stream: TcpStream) -> Result<ffmpeg_next::format::context::Input, MuxerError> {
-    // The scrcpy-server sends a small header before the video stream.
-    // We must read this first, otherwise FFmpeg will receive invalid data and fail.
+    // We must still read the scrcpy-server header before passing the stream along.
     let mut header_buffer = [0u8; 2]; // [stream_type, name_length]
     stream.read_exact(&mut header_buffer)?;
     
@@ -37,24 +37,12 @@ pub fn bridge_stream(mut stream: TcpStream) -> Result<ffmpeg_next::format::conte
         println!("Connected to device (no name provided).");
     }
 
-    // `channel()` creates a connected `Input` context and a `Writer` object.
-    let (mut ictx, mut writer) = channel()?;
-
-    // Spawn a dedicated thread to pump data from the TCP stream into the writer.
-    // This decouples network I/O from the video decoding loop.
-    thread::Builder::new()
-        .name("tcp-to-ffmpeg-bridge".to_string())
-        .spawn(move || {
-            // `io::copy` efficiently transfers all bytes from the stream to the writer
-            // until the connection is closed.
-            match io::copy(&mut stream, &mut writer) {
-                Ok(bytes) => println!("Bridge thread finished: copied {} bytes.", bytes),
-                Err(e) => eprintln!("Error in bridge thread: {}", e),
-            }
-        })?;
+    // `input()` from ffmpeg-next-io takes our TcpStream and handles all the
+    // complex background threading and piping for us.
+    let ictx = input(stream)?;
 
     println!("Stream bridge created. Video data is now being piped to the FFmpeg context.");
 
-    // Return the `Input` context. It is now ready to be used by the decoder.
+    // The `input` function returns the FFmpeg Input context directly.
     Ok(ictx)
 }
