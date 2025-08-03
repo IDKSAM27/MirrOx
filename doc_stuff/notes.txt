@@ -525,9 +525,32 @@ tcp_stream:
 
     It's reusable module that can establish a TCP connection
 
-mux:
-    The Adapter/Bridge Worker (mux.rs)
-    Creating a "bridge" that takes our live TcpStream and adapts it into a format that the ffmpeg-next crate can read from. 
-    FFmpeg's API is designed to read from sources that implement the standard Read trait.
-     
-    However, a raw TcpStream can be difficult to work with directly in a separate thread.
+mux.rs: The Stream Bridge
+    The mux.rs module serves as a critical bridge between the raw TCP network stream coming from the Android device and the FFmpeg decoding library. 
+    Its primary responsibility is to adapt the unstructured flow of network bytes into a structured, readable source that FFmpeg can understand and process.
+
+    This is necessary because FFmpeg, being a C library at its core, cannot directly consume a Rust TcpStream. 
+    It requires a specific C-style interface to request data, which this module provides.
+
+    How It Works
+    The process can be broken down into four main steps:
+
+    Server Handshake: Before the video data starts, the scrcpy-server sends a small header containing device metadata (like the device name). The bridge_stream function first reads and processes this header to ensure that only the pure H.264 video stream is passed along to the decoder.
+
+    In-Memory Pipe Creation: The module creates an in-memory pipe, which is essentially a virtual file that exists only in RAM. This pipe has two ends: a pipe_writer and a pipe_reader.
+
+    Dedicated I/O Thread: A new background thread is spawned with the sole purpose of handling network input. This thread continuously reads data from the TcpStream and writes it into the pipe_writer using the highly efficient io::copy function. This decouples network operations from the video decoding loop, preventing network stutters from freezing the application.
+
+    Custom FFmpeg I/O Context: This is the core of the module. It uses low-level functions from the ffmpeg-sys-next crate to manually construct a custom I/O context for FFmpeg.
+
+    It defines a C-compatible read_packet callback function. This is the function that FFmpeg will call whenever it needs more video data.
+
+    When FFmpeg calls this function, it reads the requested data from the pipe_reader and copies it into a buffer provided by FFmpeg.
+
+    Finally, it creates an FFmpeg Input context that is configured to use this custom callback mechanism.
+
+    The final output of the module is a fully prepared ffmpeg::format::context::Input object. This object represents a readable video stream, ready to be passed to the video decoder for processing and rendering.
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+Server crashing issues!!    

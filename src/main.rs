@@ -1,6 +1,7 @@
 mod adb;
 mod tcp_stream;
 mod mux;
+mod video; // ADD this
 
 use adb::{AdbConfig, AdbSession};
 
@@ -10,14 +11,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("ADB session established.");
 
     let stream = tcp_stream::connect(config.local_port)?;
-
     let video_input_context = mux::bridge_stream(stream)?;
 
-    println!("Stream bridge is active. Ready for video decoding.");
-    println!("Next step: Initialize video decoder and SDL2 for rendering.");
-    println!("Press Ctrl+C to exit.");
-    
-    loop {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-    }
+    // Updated: Start the modular video renderer!
+    let mut renderer = video::VideoRenderer::new(video_input_context)?;
+    renderer.run()?; // Runs until closed
+
+    Ok(())
 }
