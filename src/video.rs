@@ -20,8 +20,9 @@ impl VideoRenderer {
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         ffmpeg::init()?;
 
-        // Find the best video stream
-        let input = &self.ictx;
+        let input = &mut self.ictx;
+
+        // Find video stream index
         let stream_index = input
             .streams()
             .best(ffmpeg::media::Type::Video)
@@ -30,13 +31,13 @@ impl VideoRenderer {
 
         let stream = input.stream(stream_index).ok_or("Stream index not found")?;
 
-        // -- FFmpeg decoder context setup using CURRENT API --
+        // Using new API to obtain decoder
         let codec_params = stream.parameters();
         let mut decoder = ffmpeg::codec::context::Context::from_parameters(codec_params)?
             .decoder()
             .video()?;
 
-        // -- Create scaler to convert to RGB24 --
+        // Setup scaler for RGB24
         let width = decoder.width();
         let height = decoder.height();
 
@@ -50,13 +51,14 @@ impl VideoRenderer {
             ffmpeg::software::scaling::Flags::BILINEAR,
         )?;
 
-        // -- SDL2 Setup --
-        let sdl = sdl2::init()?;
-        let video_subsystem = sdl.video()?;
+        // SDL2 initialization
+        let sdl_context = sdl2::init()?;
+        let video_subsystem = sdl_context.video()?;
         let window = video_subsystem
             .window("MirrOx - Screen Mirroring", width, height)
             .position_centered()
             .build()?;
+
         let mut canvas = window.into_canvas().present_vsync().build()?;
         let texture_creator = canvas.texture_creator();
 
@@ -67,16 +69,14 @@ impl VideoRenderer {
             height,
         )?;
 
-        let mut event_pump = sdl.event_pump()?;
+        let mut event_pump = sdl_context.event_pump()?;
 
-        // -- FFmpeg Video Frames --
         let mut receive_frame = ffmpeg::util::frame::Video::empty();
         let mut scaled_frame = ffmpeg::util::frame::Video::empty();
 
         println!("Video decoding and rendering started!");
 
         'mainloop: for (stream, packet) in input.packets() {
-            // Only process video packets from the right stream
             if stream.index() != stream_index {
                 continue;
             }
@@ -85,23 +85,18 @@ impl VideoRenderer {
 
             while decoder.receive_frame(&mut receive_frame).is_ok() {
                 scaler.run(&receive_frame, &mut scaled_frame)?;
-                let rgb = scaled_frame.data(0);
 
-                // Copy pixel buffer to SDL2 Texture and display
-                texture.update(None, rgb, (width * 3) as usize)?;
+                let rgb_data = scaled_frame.data(0);
+                texture.update(None, rgb_data, (width * 3) as usize)?;
+
                 canvas.clear();
                 canvas.copy(&texture, None, None)?;
                 canvas.present();
 
-                // Responsive exit handling
                 for event in event_pump.poll_iter() {
                     match event {
-                        Event::Quit { .. }
-                        | Event::KeyDown {
-                            keycode: Some(Keycode::Escape),
-                            ..
-                        } => {
-                            println!("Exiting renderer loop.");
+                        Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                            println!("Exiting renderer.");
                             break 'mainloop;
                         }
                         _ => {}
@@ -110,7 +105,7 @@ impl VideoRenderer {
             }
         }
 
-        println!("Video loop finished.");
+        println!("Video renderer loop ended.");
         Ok(())
     }
 }

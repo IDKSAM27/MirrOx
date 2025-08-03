@@ -6,7 +6,9 @@ use ffmpeg_sys_next as ffmpeg_sys;
 use thiserror::Error;
 use std::ffi::c_void;
 
-// --- Custom Error Type ---
+// Pipe crate is used for in-memory streams
+use pipe::pipe;
+
 #[derive(Debug, Error)]
 pub enum MuxerError {
     #[error("An FFmpeg error occurred: {0}")]
@@ -16,10 +18,11 @@ pub enum MuxerError {
     IoError(#[from] io::Error),
 }
 
+// Our callback that FFmpeg calls to get data
 extern "C" fn read_packet(opaque: *mut c_void, buf: *mut u8, buf_size: i32) -> i32 {
     let pipe_reader = unsafe { &mut *(opaque as *mut Box<dyn Read + Send>) };
     let rust_slice = unsafe { std::slice::from_raw_parts_mut(buf, buf_size as usize) };
-    
+
     match pipe_reader.read(rust_slice) {
         Ok(0) => ffmpeg_sys::AVERROR_EOF,
         Ok(n) => n as i32,
@@ -28,9 +31,11 @@ extern "C" fn read_packet(opaque: *mut c_void, buf: *mut u8, buf_size: i32) -> i
 }
 
 pub fn bridge_stream(mut stream: TcpStream) -> Result<ffmpeg::format::context::Input, MuxerError> {
+    // Read scrcpy-server initial header [stream_type, name_length]
     let mut header_buffer = [0u8; 2];
     stream.read_exact(&mut header_buffer)?;
     let device_name_length = header_buffer[1] as usize;
+
     if device_name_length > 0 {
         let mut device_name_buffer = vec![0u8; device_name_length];
         stream.read_exact(&mut device_name_buffer)?;
@@ -40,7 +45,10 @@ pub fn bridge_stream(mut stream: TcpStream) -> Result<ffmpeg::format::context::I
         println!("Connected to device (no name provided).");
     }
 
+    // Create in-memory pipe for bridging TcpStream to FFmpeg
     let (pipe_reader, mut pipe_writer) = pipe::pipe();
+
+    // Box reader so it has a stable address for FFmpeg
     let mut boxed_reader: Box<dyn Read + Send> = Box::new(pipe_reader);
 
     thread::Builder::new()
@@ -54,50 +62,63 @@ pub fn bridge_stream(mut stream: TcpStream) -> Result<ffmpeg::format::context::I
 
     unsafe {
         let buffer_size = 4096;
-        let buffer = ffmpeg_sys::av_malloc(buffer_size);
-        if buffer.is_null() {
-            return Err(MuxerError::FfmpegError(ffmpeg::Error::from(ffmpeg_sys::AVERROR(ffmpeg_sys::ENOMEM))));
+        let buffer_ptr = ffmpeg_sys::av_malloc(buffer_size);
+
+        if buffer_ptr.is_null() {
+            return Err(MuxerError::FfmpegError(
+                ffmpeg::Error::from(ffmpeg_sys::AVERROR(ffmpeg_sys::ENOMEM)),
+            ));
         }
 
         let avio_ctx = ffmpeg_sys::avio_alloc_context(
-            buffer as *mut u8,
+            buffer_ptr as *mut u8,
             buffer_size as i32,
-            0,
-            &mut *boxed_reader as *mut (dyn Read + Send) as *mut c_void,
+            0, // Read-only
+            &mut *boxed_reader as *mut _ as *mut c_void,
             Some(read_packet),
             None,
             None,
         );
 
         if avio_ctx.is_null() {
-            // FIX 1: Cast the buffer pointer to *mut c_void for av_free.
-            ffmpeg_sys::av_free(buffer as *mut c_void);
-            return Err(MuxerError::FfmpegError(ffmpeg::Error::from(ffmpeg_sys::AVERROR(ffmpeg_sys::ENOMEM))));
+            ffmpeg_sys::av_free(buffer_ptr as *mut c_void);
+            return Err(MuxerError::FfmpegError(
+                ffmpeg::Error::from(ffmpeg_sys::AVERROR(ffmpeg_sys::ENOMEM)),
+            ));
         }
 
         let mut av_format_ctx = ffmpeg_sys::avformat_alloc_context();
         if av_format_ctx.is_null() {
             ffmpeg_sys::av_free((*avio_ctx).buffer as *mut c_void);
             ffmpeg_sys::av_free(avio_ctx as *mut c_void);
-            return Err(MuxerError::FfmpegError(ffmpeg::Error::from(ffmpeg_sys::AVERROR(ffmpeg_sys::ENOMEM))));
+            return Err(MuxerError::FfmpegError(
+                ffmpeg::Error::from(ffmpeg_sys::AVERROR(ffmpeg_sys::ENOMEM)),
+            ));
         }
-        
+
         (*av_format_ctx).pb = avio_ctx;
 
-        if ffmpeg_sys::avformat_open_input(&mut av_format_ctx, std::ptr::null(), std::ptr::null_mut(), std::ptr::null_mut()) < 0 {
-            // FIX 1 (again): Cast the buffer pointer for av_free on error.
+        if ffmpeg_sys::avformat_open_input(
+            &mut av_format_ctx,
+            std::ptr::null(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        ) < 0
+        {
             ffmpeg_sys::av_free((*avio_ctx).buffer as *mut c_void);
             ffmpeg_sys::av_free(avio_ctx as *mut c_void);
             ffmpeg_sys::avformat_free_context(av_format_ctx);
-            return Err(MuxerError::FfmpegError(ffmpeg::Error::from(ffmpeg_sys::AVERROR_UNKNOWN)));
+            return Err(MuxerError::FfmpegError(ffmpeg::Error::from(
+                ffmpeg_sys::AVERROR_UNKNOWN,
+            )));
         }
 
-        // FIX 2: Use the correct `wrap` function instead of `from_ptr`.
         let ictx = ffmpeg::format::context::Input::wrap(av_format_ctx);
-        
+
         println!("Custom IO stream bridge created. FFmpeg context is ready.");
+
         std::mem::forget(boxed_reader);
-        
+
         Ok(ictx)
     }
 }
