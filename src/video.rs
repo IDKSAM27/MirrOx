@@ -1,3 +1,5 @@
+// src/video.rs
+
 use std::error::Error;
 use ffmpeg_next as ffmpeg;
 
@@ -19,6 +21,8 @@ impl VideoRenderer {
 
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         ffmpeg::init()?;
+        // DEBUG: Confirm the run function has started
+        println!("[video.rs] VideoRenderer run() started.");
 
         let input = &mut self.ictx;
 
@@ -36,11 +40,14 @@ impl VideoRenderer {
         let mut decoder = ffmpeg::codec::context::Context::from_parameters(codec_params)?
             .decoder()
             .video()?;
-
-        // Setup scaler for RGB24
+        
+        // DEBUG: Print decoder info
         let width = decoder.width();
         let height = decoder.height();
+        println!("[video.rs] Decoder initialized. Resolution: {}x{}, Format: {:?}", width, height, decoder.format());
 
+
+        // Setup scaler for RGB24
         let mut scaler = ffmpeg::software::scaling::Context::get(
             decoder.format(),
             width,
@@ -74,16 +81,22 @@ impl VideoRenderer {
         let mut receive_frame = ffmpeg::util::frame::Video::empty();
         let mut scaled_frame = ffmpeg::util::frame::Video::empty();
 
-        println!("Video decoding and rendering started!");
+        println!("[video.rs] Starting main render loop...");
 
         'mainloop: for (stream, packet) in input.packets() {
             if stream.index() != stream_index {
                 continue;
             }
 
+            // DEBUG: Confirm we are receiving packets from the muxer
+            println!("[video.rs] Received packet, size: {} bytes", packet.size());
+
             decoder.send_packet(&packet)?;
 
             while decoder.receive_frame(&mut receive_frame).is_ok() {
+                // DEBUG: Confirm the decoder is producing frames
+                println!("[video.rs] Decoded frame, PTS: {:?}", receive_frame.pts());
+
                 scaler.run(&receive_frame, &mut scaled_frame)?;
 
                 let rgb_data = scaled_frame.data(0);
@@ -93,10 +106,13 @@ impl VideoRenderer {
                 canvas.copy(&texture, None, None)?;
                 canvas.present();
 
+                // DEBUG: Confirm a frame has been rendered to the canvas
+                println!("[video.rs] Frame rendered to canvas.");
+
                 for event in event_pump.poll_iter() {
                     match event {
                         Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                            println!("Exiting renderer.");
+                            println!("[video.rs] Exit signal received.");
                             break 'mainloop;
                         }
                         _ => {}
@@ -105,7 +121,7 @@ impl VideoRenderer {
             }
         }
 
-        println!("Video renderer loop ended.");
+        println!("[video.rs] Video renderer loop ended.");
         Ok(())
     }
 }
