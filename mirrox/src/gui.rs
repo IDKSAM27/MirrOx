@@ -4,13 +4,14 @@ use sdl2::event::Event;
 use tokio::sync::broadcast::Receiver;
 use image::io::Reader as ImageReader;
 use std::io::Cursor;
+use tokio::sync::watch;
 
 const PORTRAIT_WIDTH: u32 = 1080;
 const PORTRAIT_HEIGHT: u32 = 2400;
 const LANDSCAPE_WIDTH: u32 = 2400;
 const LANDSCAPE_HEIGHT: u32 = 1080;
 
-pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
+pub async fn start_gui(mut rx: Receiver<Vec<u8>>, shutdown_tx: watch::Sender<bool>) -> Result<(), String> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
     let mut window = video_subsystem
@@ -74,7 +75,11 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>) -> Result<(), String> {
 
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit { .. } => break 'running,
+                Event::Quit { .. } => { 
+                    println!("\nSDL2 window closed. Sending shutdown signal...");
+                    let _ = shutdown_tx.send(true); // Send shutdown signal
+                    break 'running;
+                }
                 Event::Window { win_event, .. } => match win_event {
                     sdl2::event::WindowEvent::Resized(w, h) => {
                         let display_rect = calculate_display_rect(w as u32, h as u32, phone_width, phone_height);

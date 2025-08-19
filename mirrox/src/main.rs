@@ -1,0 +1,150 @@
+// MirrOx: A Rust-based implementation of scrcpy
+mod utils;
+mod adb;
+mod video;
+mod network;
+mod gui;
+use crate::adb::*;
+use tokio::sync::broadcast;
+use std::sync::Arc;
+use tokio::sync::watch;
+
+#[tokio::main]
+async fn main() {
+    env_logger::init();
+    println!("Starting MirrOx...");
+
+    // let (tx, _) = mpsc::unbounded_channel();
+    let (tx, _) = broadcast::channel(10); // Use broadcast::chanel instead of mpsc::unbounded_channel
+    let tx = Arc::new(tx); // Wrap in Arc
+
+    let (shutdown_tx, shutdown_rx) = watch::channel(false); // shutdown signal // shutdown_rx ??
+
+    tokio::spawn(network::start_websocket_server((*tx).clone())); // Fix type mismatch
+    // tokio::spawn(video::start_video_stream(tx.clone())); // Start video stream
+
+
+    // Check if ADB is available
+    if let Err(e) = adb::check_adb() {
+        log::error!("ADB check failed: {}", e);
+        return;
+    }
+
+    // List connected devices
+    match adb::list_devices() {
+        Ok(devices) => {
+            if devices.is_empty() {
+                log::error!("No devices found.");
+                return; // Exit early if no devices are found
+            }
+            println!("Connected devices:");
+            for device in &devices {
+                println!(
+                    "- {} ({}) [{}] | Manufacturer: {} | Model: {}",
+                    device.id, device.state, device.connection_type, device.manufacture, device.model
+                );
+                println!(
+                    "Device: {} | Battery: {}% | Uptime: {}\n",
+                    device.model, device.battery_level, device.uptime
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return; // Exit early if list_devices() fails
+        }
+    }
+
+    match adb::say_hello_from_device() {
+        Ok(_) => println!("Message sent successfully.\n"),
+        Err(e) => eprintln!("2Error: {}", e),
+    }
+
+    // if let Ok(_) = adb::say_hello_from_device() {
+    //     println!("Message sent successfully.\n");
+    // }
+
+    match get_connected_devices() {
+        Ok(devices) => {
+            if let Some(device_id) = devices.first() {
+                println!("Using device: {}", device_id);
+
+                // For pure connection testing between the client and Android phone
+                /*
+                // Push a file from PC to Android
+                match adb_push(device_id, "D:/test.txt", "/sdcard/ADB/test.txt") {
+                    Ok(_) => println!("Push successful"),
+                    Err(e) => println!("Error: {}", e),
+                }
+
+                // Pull a file from Android to PC
+                match adb_pull(device_id, "/sdcard/ADB/test.txt", "C:/Users/Sampreet/Downloads/file.txt") {
+                    Ok(_) => println!("Pull successful"),
+                    Err(e) => println!("Error: {}", e),
+                }
+                */
+            } else {
+                println!("No devices found.");
+            }
+        }
+        Err(e) => println!("Error: {}", e),
+    }
+
+    match adb::select_device() {
+        Ok(selected_device) => {
+            println!("Selected device: {} ({})", selected_device.id, selected_device.model);
+
+            // Start the video stream with the correct device ID
+            let tx_clone = tx.clone();
+            let device_id = selected_device.id.clone(); // Clone device ID
+            let shutdown_rx_clone = shutdown_rx.clone();
+            
+            tokio::spawn(async move {
+                video::start_video_stream(tx_clone, device_id, shutdown_rx_clone).await;
+            });
+
+            // Start gui
+            let rx = tx.subscribe();
+            let shutdown_tx_clone = shutdown_tx.clone();
+
+            tokio::spawn(async move {
+                match gui::start_gui(rx, shutdown_tx_clone).await {
+                    Ok(_) => println!("GUI closed."),
+                    Err(e) => eprintln!("GUI error: {}", e),
+                }
+            });
+            
+            // For debugging the captured screen
+            /*
+            match adb::capture_screen(&selected_device.id) {
+                Ok(raw_data) => {
+                    if let Err(e) = video::parse_screenshot(raw_data, "screenshot.png") {
+                        log::error!("Error processing screenshot: {}", e);
+                    }
+                }
+                Err(e) => log::error!("Error capturing screen: {}", e),
+            }
+            */
+        }
+        Err(e) => log::error!("Device selection failed: {}", e),
+    }
+
+    // Waiting for shutdown (from Ctrl+C or SDL window)
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            println!("Received Ctrl+C. Shutting down...");
+        }
+        _ = wait_for_shutdown_signal(shutdown_rx.clone()) => {
+            println!("Shutdown signal received from GUI.");
+        }
+    }
+
+    println!("Shutting down...");
+}
+
+async fn wait_for_shutdown_signal(mut shutdown_rx: watch::Receiver<bool>) {
+    while !*shutdown_rx.borrow() {
+        shutdown_rx.changed().await.ok();
+    }
+}
