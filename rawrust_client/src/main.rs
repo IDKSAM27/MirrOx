@@ -1,4 +1,4 @@
-// //! MirrOx: A Rust-based implementation of scrcp
+// MirrOx: A Rust-based implementation of scrcpy
 mod utils;
 mod adb;
 mod video;
