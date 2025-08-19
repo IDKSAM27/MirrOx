@@ -69,6 +69,8 @@ async fn main() {
             if let Some(device_id) = devices.first() {
                 println!("Using device: {}", device_id);
 
+                // For pure connection testing between the client and Android phone
+                /*
                 // Push a file from PC to Android
                 match adb_push(device_id, "D:/test.txt", "/sdcard/ADB/test.txt") {
                     Ok(_) => println!("Push successful"),
@@ -80,6 +82,7 @@ async fn main() {
                     Ok(_) => println!("Pull successful"),
                     Err(e) => println!("Error: {}", e),
                 }
+                */
             } else {
                 println!("No devices found.");
             }
@@ -111,6 +114,8 @@ async fn main() {
                 }
             });
             
+            // For debugging the captured screen
+            /*
             match adb::capture_screen(&selected_device.id) {
                 Ok(raw_data) => {
                     if let Err(e) = video::parse_screenshot(raw_data, "screenshot.png") {
@@ -119,6 +124,7 @@ async fn main() {
                 }
                 Err(e) => log::error!("Error capturing screen: {}", e),
             }
+            */
         }
         Err(e) => log::error!("Device selection failed: {}", e),
     }

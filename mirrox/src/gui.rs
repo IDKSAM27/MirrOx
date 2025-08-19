@@ -76,7 +76,7 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>, shutdown_tx: watch::Sender<boo
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. } => { 
-                    println!("SDL2 window closed. Sending shutdown signal...");
+                    println!("\nSDL2 window closed. Sending shutdown signal...");
                     let _ = shutdown_tx.send(true); // Send shutdown signal
                     break 'running;
                 }
