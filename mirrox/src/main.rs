@@ -7,6 +7,7 @@ mod gui;
 use crate::adb::*;
 use tokio::sync::broadcast;
 use std::sync::Arc;
+use tokio::sync::watch;
 
 #[tokio::main]
 async fn main() {
@@ -16,6 +17,8 @@ async fn main() {
     // let (tx, _) = mpsc::unbounded_channel();
     let (tx, _) = broadcast::channel(10); // Use broadcast::chanel instead of mpsc::unbounded_channel
     let tx = Arc::new(tx); // Wrap in Arc
+
+    let (shutdown_tx, shutdown_rx) = watch::channel(false); // shutdown signal // shutdown_rx ??
 
     tokio::spawn(network::start_websocket_server((*tx).clone())); // Fix type mismatch
     // tokio::spawn(video::start_video_stream(tx.clone())); // Start video stream
@@ -57,6 +60,10 @@ async fn main() {
         Err(e) => eprintln!("2Error: {}", e),
     }
 
+    // if let Ok(_) = adb::say_hello_from_device() {
+    //     println!("Message sent successfully.\n");
+    // }
+
     match get_connected_devices() {
         Ok(devices) => {
             if let Some(device_id) = devices.first() {
@@ -87,15 +94,18 @@ async fn main() {
             // Start the video stream with the correct device ID
             let tx_clone = tx.clone();
             let device_id = selected_device.id.clone(); // Clone device ID
+            let shutdown_rx_clone = shutdown_rx.clone();
             
             tokio::spawn(async move {
-                video::start_video_stream(tx_clone, device_id).await;
+                video::start_video_stream(tx_clone, device_id, shutdown_rx_clone).await;
             });
 
             // Start gui
             let rx = tx.subscribe();
+            let shutdown_tx_clone = shutdown_tx.clone();
+
             tokio::spawn(async move {
-                match gui::start_gui(rx).await {
+                match gui::start_gui(rx, shutdown_tx_clone).await {
                     Ok(_) => println!("GUI closed."),
                     Err(e) => eprintln!("GUI error: {}", e),
                 }
@@ -113,6 +123,22 @@ async fn main() {
         Err(e) => log::error!("Device selection failed: {}", e),
     }
 
-    tokio::signal::ctrl_c().await.expect("Failed to listen for shutdown signal");
+    // Waiting for shutdown (from Ctrl+C or SDL window)
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            println!("Received Ctrl+C. Shutting down...");
+        }
+        _ = wait_for_shutdown_signal(shutdown_rx.clone()) => {
+            println!("Shutdown signal received from GUI.");
+        }
+    }
+
     println!("Shutting down...");
+}
+
+async fn wait_for_shutdown_signal(mut shutdown_rx: watch::Receiver<bool>) {
+    while !*shutdown_rx.borrow() {
+        shutdown_rx.changed().await.ok();
+    }
 }
