@@ -5,7 +5,9 @@ No bloated UIs.
 No Java. 
 Just lightning-fast screen capture via ADB, streamed over WebSocket, and rendered with SDL2.
 
----
+My journey in building this has been preposterously [documented](https://github.com/IDKSAM27/MirrOx/tree/main/doc_stuff). You can check it out if you have strong guts. (^_~)
+
+
 
 ## Features
 
@@ -15,7 +17,7 @@ Just lightning-fast screen capture via ADB, streamed over WebSocket, and rendere
 - Device battery + uptime info
 - Cross-platform Rust CLI with GUI
 
----
+
 
 ## Preview
 
@@ -23,30 +25,30 @@ Just lightning-fast screen capture via ADB, streamed over WebSocket, and rendere
 
 > #TODO _(Add a GIF or screenshot here if possible!)_
 
----
+
 
 ## Requirements
 
 - [Rust](https://www.rust-lang.org/tools/install)
 - [ADB](https://developer.android.com/tools/adb) (Android Debug Bridge) installed and accessible in your PATH
 - A connected Android device with **USB debugging enabled** and **Allow this computer** option enabled (asks only the first time)
-- SDL2 development libraries installed (for native builds)
+- [SDL2](https://www.libsdl.org/) development libraries installed (for native builds)
 
----
+
 
 ## Pre-built Binaries
 
 - Find the latest builds under [Releases]()
 - Just download the binary for your OS and run it.
 
----
+
 
 ## Installation
 
 Clone the repo:
 
 ```bash
-git clone https://github.com/MirrOx/MirrOx.git
+git clone https://github.com/IDKSAM27/MirrOx.git
 cd MirrOx/mirrox
 ```
 
@@ -61,7 +63,7 @@ Run it:
 cargo run --release
 ```
 
----
+
 
 ## How It Works
 
@@ -73,7 +75,7 @@ cargo run --release
 
 - You see your Android screen — live!
 
----
+
 
 ## Developer Notes
 
@@ -87,39 +89,40 @@ cargo run --release
 
 `main.rs`: Entry point and async task orchestration
 
----
+
 
 ## Why "MirrOx"?
 
-> Because it’s a mirror... with a bit of Rusty OX-ness 🐂
+Because it’s a mirror... with a bit of Rusty OX-ness 🐂
 
 > Also.. it sounds cool.
 
----
+
 
 ## Contributing
 
-> Pull requests, issues, and feature requests are welcome!
+- Pull requests, issues, and feature requests are welcome!
 
-> If you're a Rustacean (or aspiring one), this is a great playground.
+- If you're a Rustacean (or aspiring one), this is a great playground.
 
----
+
 
 ## License
 
-> [MIT License]().
+> [MIT License](https://github.com/IDKSAM27/MirrOx/blob/main/LICENSE).
 
 Do whatever you want. Just don’t blame me if your cat deletes your phone.
 
 ## Credits
 
-> Inspired by scrcpy
+Inspired by scrcpy
 
 > Built with ❤️ in Rust
 
 ---
+---
 
-Quick guide chart (for developers)
+#### Quick guide chart (for developers)
 ```graphql
 MirrOx/
 │── mirrox/  

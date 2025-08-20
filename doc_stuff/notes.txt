@@ -559,3 +559,11 @@ Server crashing again!! Fantastic isn't it?
 
 I'll release the rawrust_client as is. 
 And improve it parallely with the OG MirrOx
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+Using SemanticVersioning: MAJOR.MINOR.PATCH (e.g, 0.2.3)
+
+cargo install cross 
+    cross build --release --target x86_64-unknown-linux-gnu 
+    cross build --release --target x86_64-pc-windows-gnu
