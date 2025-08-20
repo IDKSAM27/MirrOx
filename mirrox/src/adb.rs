@@ -106,7 +106,8 @@ pub fn get_connected_devices() -> Result<Vec<String>, String> {
         }
 
         if devices.is_empty() {
-            Err("No devices found.2".to_string())
+            // Err("No devices found.2".to_string())
+            Err("".to_string())
         } else {
             Ok(devices)
         }

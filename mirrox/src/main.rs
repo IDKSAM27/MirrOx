@@ -35,7 +35,8 @@ async fn main() {
         Ok(devices) => {
             if devices.is_empty() {
                 log::error!("No devices found.");
-                return; // Exit early if no devices are found
+                //TODO://return; // Exit early if no devices are found
+                
             }
             println!("Connected devices:");
             for device in &devices {
@@ -51,13 +52,14 @@ async fn main() {
         }
         Err(e) => {
             eprintln!("Error: {}", e);
-            return; // Exit early if list_devices() fails
+            //TODO:return; // Exit early if list_devices() fails
         }
     }
 
     match adb::say_hello_from_device() {
         Ok(_) => println!("Message sent successfully.\n"),
-        Err(e) => eprintln!("2Error: {}", e),
+        // Err(e) => eprintln!("2Error: {}", e),
+        Err(e) => println!(),
     }
 
     // if let Ok(_) = adb::say_hello_from_device() {
@@ -87,7 +89,8 @@ async fn main() {
                 println!("No devices found.");
             }
         }
-        Err(e) => println!("Error: {}", e),
+        // Err(e) => println!("Error: {}", e),
+        Err(e) => println!("Info: Connect an android phone via USB and try again"),
     }
 
     match adb::select_device() {
