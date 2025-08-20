@@ -305,3 +305,14 @@ Ensure it works on Windows, Linux, and Mac
 TUI (Terminal UI) → Use ratatui for CLI mirroring
 
 GUI (Graphical UI) → Use egui or a web-based UI with Tauri
+
+
+### 🔧 Bonus Suggestions
+
+- Add a small demo GIF or screenshot under the **Preview** section.
+- Include `.gitignore` and optionally a `LICENSE` file if you haven’t yet.
+- Add a [release tag](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) and upload the compiled binaries for easy download.
+
+---
+
+Let me know if you want a shorter version, or one targeted for non-dev users too (like with fewer technical sections).
