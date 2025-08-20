@@ -23,27 +23,31 @@ My journey in building this has been preposterously [documented](https://github.
 
 > _Imagine your Android screen, live in an SDL2 window — and streamed over WebSocket... in Rust._
 
-> #TODO _(Add a GIF or screenshot here if possible!)_
-![screenshot](mirrox/assets/Preview.png)
-
-
+<p align="center">
+  <img src="mirrox/assets/Preview.png" alt="MirrOx" width="50%"/>
+</p>
 
 ## Requirements
 
 - [Rust](https://www.rust-lang.org/tools/install)
 - [ADB](https://developer.android.com/tools/adb) (Android Debug Bridge) installed and accessible in your PATH
-- A connected Android device with **USB debugging enabled** and **Allow this computer** option enabled (asks only the first time)
+- A connected Android device with **USB debugging enabled** and **Always allow from this computer** option enabled (asks only the first time)
 - [SDL2](https://www.libsdl.org/) development libraries installed (for native builds)
 
 
 
 ## Pre-built Binaries
 
-- Find the latest builds under [Releases]()
-- Just download the binary for your OS and run it.
+- Find the latest builds under [Releases](https://github.com/IDKSAM27/MirrOx/releases)
+- Just download the binary.
+- Before running the binary ensure The `USB Debugging` is toggled on via `Developer Options/Settings` in your Android device.
+- Connect the Android device to your PC via USB cable, Now the Android device will show a pop-up, enable `Always allow from this computer` and press `ALLOW`. (Yes it is safe!)
 
-
-
+<p align="center">
+  <img src="mirrox/assets/EnableUSBDebugging.jpg" alt="MirrOx" width="30%"/>
+  <img src="mirrox/assets/AllowUSBDebugging.png" alt="MirrOx" width="30%"/>
+</p>
+  
 ## Installation
 
 Clone the repo:
@@ -120,7 +124,6 @@ Inspired by scrcpy
 
 > Built with ❤️ in Rust
 
----
 ---
 
 #### Quick guide chart (for developers)
