@@ -1,6 +1,6 @@
 # MirrOx (Mirror + Oxidation)
 
-**MirrOx** is a fast, minimal, Rust-powered Android screen mirroring tool — inspired by [`scrcpy`](https://github.com/Genymobile/scrcpy), built from the ground up in pure Rust. 
+**MirrOx** is a fast, minimal, Rust-powered Android screen mirroring tool — built from the ground up in pure Rust. 
 No bloated UIs. 
 No Java. 
 Just lightning-fast screen capture via ADB, streamed over WebSocket, and rendered with SDL2.
@@ -24,6 +24,7 @@ My journey in building this has been preposterously [documented](https://github.
 > _Imagine your Android screen, live in an SDL2 window — and streamed over WebSocket... in Rust._
 
 > #TODO _(Add a GIF or screenshot here if possible!)_
+![screenshot](mirrox/assets/Preview.png)
 
 
 
