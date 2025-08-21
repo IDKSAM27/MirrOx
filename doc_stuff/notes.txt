@@ -567,3 +567,8 @@ Using SemanticVersioning: MAJOR.MINOR.PATCH (e.g, 0.2.3)
 cargo install cross 
     cross build --release --target x86_64-unknown-linux-gnu 
     cross build --release --target x86_64-pc-windows-gnu
+
+
+To create a tar.gz file (bash/linux):
+    tar -czvf mirrox-v0.1.0-x86_64-linux.tar.gz -C Mirrox/ mirrox LICENSE README.txt adb
+
