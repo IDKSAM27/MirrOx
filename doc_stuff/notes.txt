@@ -600,3 +600,10 @@ Insights:
     The raw framebuffer data length includes these header bytes, while the GUI is expecting pixel data only.
 
     The frame size mismatch of 12 bytes relates perfectly to those 16 header bytes plus possibly padding.
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+I'll use this to get the android phone's screen size.
+    adb -s <device_id> shell wm size
+
+---------------------------------------------------------------------------------------------------------------------------------
