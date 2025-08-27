@@ -39,8 +39,7 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>, shutdown_tx: watch::Sender<boo
     'running: loop {
         if let Ok(frame) = rx.try_recv() {
             frame_count += 1;
-            println!("Received frame size: {}", frame.len());
-
+            // Validate frame size matches expected RGB24 frame size
             if frame.len() == (phone_width * phone_height * 3) as usize {
                 if let Err(e) = texture.update(None, &frame, (phone_width * 3) as usize) {
                     eprintln!("Texture update error: {}", e);
@@ -55,7 +54,7 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>, shutdown_tx: watch::Sender<boo
                     canvas.present();
                 }
             } else {
-                eprintln!("Received frame size mismatch: expected {}, got {}", phone_width * phone_height * 3, frame.len());
+                eprintln!("Frame size mismatch, expected {}, got {}", phone_width * phone_height * 3, frame.len());
             }
 
             if frame_count % 30 == 0 {
