@@ -14,15 +14,11 @@ async fn main() {
     env_logger::init();
     println!("Starting MirrOx...");
 
-    // let (tx, _) = mpsc::unbounded_channel();
     let (tx, _) = broadcast::channel(10); // Use broadcast::chanel instead of mpsc::unbounded_channel
     let tx = Arc::new(tx); // Wrap in Arc
-
     let (shutdown_tx, shutdown_rx) = watch::channel(false); // shutdown signal // shutdown_rx ??
 
     tokio::spawn(network::start_websocket_server((*tx).clone())); // Fix type mismatch
-    // tokio::spawn(video::start_video_stream(tx.clone())); // Start video stream
-
 
     // Check if ADB is available
     if let Err(e) = adb::check_adb() {
@@ -36,7 +32,6 @@ async fn main() {
             if devices.is_empty() {
                 log::error!("No devices found.");
                 //TODO://return; // Exit early if no devices are found
-                
             }
             println!("Connected devices:");
             for device in &devices {
@@ -58,13 +53,8 @@ async fn main() {
 
     match adb::say_hello_from_device() {
         Ok(_) => println!("Message sent successfully.\n"),
-        // Err(e) => eprintln!("2Error: {}", e),
         Err(e) => println!(),
     }
-
-    // if let Ok(_) = adb::say_hello_from_device() {
-    //     println!("Message sent successfully.\n");
-    // }
 
     match get_connected_devices() {
         Ok(devices) => {
@@ -89,7 +79,6 @@ async fn main() {
                 println!("No devices found.");
             }
         }
-        // Err(e) => println!("Error: {}", e),
         Err(e) => println!("Info: Connect an android phone via USB and try again"),
     }
 
@@ -133,7 +122,6 @@ async fn main() {
     }
 
     // Waiting for shutdown (from Ctrl+C or SDL window)
-
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             println!("Received Ctrl+C. Shutting down...");

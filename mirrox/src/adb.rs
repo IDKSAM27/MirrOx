@@ -1,11 +1,9 @@
-// use std::fs::*;
 use std::fs;
-// use std::fs::File;
+use std::fs::File;
 use std::path::Path;
 use crate::utils::*;
-use std::io::{self, Write};
-use std::process::Command;
-// use std::fmt::Display;
+use std::io::{self, Write, Read, BufReader, BufRead};
+use std::process::{Command, Stdio, Child};
 
 // Represents a connected ADB device with its state.
 #[derive(Debug, Clone)]
@@ -46,7 +44,6 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
     if output.status.success() {
         let output_str = String::from_utf8_lossy(&output.stdout);
         let mut devices = Vec::new();
-
         log::debug!("Raw ADB output:\n{}", output_str); // NEW SHIT
 
         // Parse ADB output
@@ -106,7 +103,6 @@ pub fn get_connected_devices() -> Result<Vec<String>, String> {
         }
 
         if devices.is_empty() {
-            // Err("No devices found.2".to_string())
             Err("".to_string())
         } else {
             Ok(devices)
@@ -253,4 +249,28 @@ pub fn capture_screen(device_id: &str) -> Result<Vec<u8>, String> {
     }
 
     Ok(output.stdout) // Return raw image data
+}
+
+/// Instrumented raw framebuffer capture with logging and saving for debug
+pub fn capture_screen_raw_instrumented(device_id: &str) -> Result<Vec<u8>, String> {
+    let output = Command::new("adb")
+        .args(["-s", device_id, "exec-out", "screencap"])
+        .output()
+        .map_err(|e| format!("Failed to run ADB command: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "ADB command failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    let data = output.stdout;
+
+    println!("Raw framebuffer size: {}", data.len());
+    println!("Raw framebuffer first 16 bytes: {:?}", &data[..16.min(data.len())]);
+
+    let _ = File::create("test_frame.raw").and_then(|mut f| f.write_all(&data));
+
+    Ok(data)
 }

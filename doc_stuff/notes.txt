@@ -572,3 +572,38 @@ cargo install cross
 To create a tar.gz file (bash/linux):
     tar -czvf mirrox-v0.1.0-x86_64-linux.tar.gz -C Mirrox/ mirrox LICENSE README.txt adb
 
+---------------------------------------------------------------------------------------------------------------------------------
+
+
+Analysis of Logs
+
+    Raw framebuffer size: 10,368,016 bytes
+
+    Received frame size: 7,776,012 bytes
+
+    Expected frame size: 7,776,000 bytes (seems to be 1080×2400×31080×2400×3)
+
+    Mismatch: Received 12 bytes more than expected
+
+    Raw framebuffer first 16 bytes: [56, 4, 0, 0, 96, 9, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
+
+Insights:
+
+    Raw framebuffer has a header, likely the first 16 bytes (or more) describe image width, height, pixel format, or stride.
+
+        The first 4 bytes = 56, 4, 0, 0 = 0x0458 = 1112 decimal. This often indicates stride or padded row width.
+
+        Next 4 bytes = 96, 9, 0, 0 = 0x0960 = 2400 decimal = height.
+
+        Next 4 bytes = 1, 0, 0, 0 = 1 decimal maybe pixel format code.
+
+    The raw framebuffer data length includes these header bytes, while the GUI is expecting pixel data only.
+
+    The frame size mismatch of 12 bytes relates perfectly to those 16 header bytes plus possibly padding.
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+I'll use this to get the android phone's screen size.
+    adb -s <device_id> shell wm size
+
+---------------------------------------------------------------------------------------------------------------------------------

@@ -2,20 +2,18 @@ use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use sdl2::event::Event;
 use tokio::sync::broadcast::Receiver;
-use image::io::Reader as ImageReader;
-use std::io::Cursor;
 use tokio::sync::watch;
+use std::time::Instant;
 
 const PORTRAIT_WIDTH: u32 = 1080;
 const PORTRAIT_HEIGHT: u32 = 2400;
-const LANDSCAPE_WIDTH: u32 = 2400;
-const LANDSCAPE_HEIGHT: u32 = 1080;
 
 pub async fn start_gui(mut rx: Receiver<Vec<u8>>, shutdown_tx: watch::Sender<bool>) -> Result<(), String> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
+
     let mut window = video_subsystem
-        .window("MirrOx", 800, 600)
+        .window("MirrOx - Optimized", 800, 600)
         .position_centered()
         .resizable()
         .build()
@@ -25,77 +23,70 @@ pub async fn start_gui(mut rx: Receiver<Vec<u8>>, shutdown_tx: watch::Sender<boo
 
     let mut canvas = window.into_canvas().accelerated().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
-    let mut texture = texture_creator
-        .create_texture_streaming(PixelFormatEnum::RGB24, PORTRAIT_WIDTH, PORTRAIT_HEIGHT)
-        .map_err(|e| e.to_string())?;
 
-    let mut event_pump = sdl_context.event_pump()?;
     let mut phone_width = PORTRAIT_WIDTH;
     let mut phone_height = PORTRAIT_HEIGHT;
 
+    let mut texture = texture_creator
+        .create_texture_streaming(PixelFormatEnum::RGB24, phone_width, phone_height)
+        .map_err(|e| e.to_string())?;
+
+    let mut event_pump = sdl_context.event_pump()?;
+
+    let mut frame_count = 0;
+    let start_time = Instant::now();
+
     'running: loop {
         if let Ok(frame) = rx.try_recv() {
-            if &frame[..4] == &[137, 80, 78, 71] {
-                match ImageReader::new(Cursor::new(&frame))
-                    .with_guessed_format()
-                    .map_err(|e| e.to_string())?
-                    .decode()
-                {
-                    Ok(img) => {
-                        let rgb_img = img.into_rgb8();
-                        let (img_width, img_height) = (rgb_img.width(), rgb_img.height());
-
-                        // Detect orientation change
-                        if img_width > img_height {
-                            phone_width = LANDSCAPE_WIDTH;
-                            phone_height = LANDSCAPE_HEIGHT;
-                        } else {
-                            phone_width = PORTRAIT_WIDTH;
-                            phone_height = PORTRAIT_HEIGHT;
-                        }
-
-                        texture = texture_creator
-                            .create_texture_streaming(PixelFormatEnum::RGB24, phone_width, phone_height)
-                            .map_err(|e| e.to_string())?;
-
-                        texture.update(None, &rgb_img, (phone_width * 3) as usize).unwrap();
-
-                        let (win_width, win_height) = canvas.window().size();
-                        let display_rect = calculate_display_rect(win_width, win_height, phone_width, phone_height);
-
-                        canvas.set_draw_color(sdl2::pixels::Color::BLACK);
-                        canvas.clear();
-                        canvas.copy(&texture, None, Some(display_rect))?;
-                        canvas.present();
+            frame_count += 1;
+            // Validate frame size matches expected RGB24 frame size
+            if frame.len() == (phone_width * phone_height * 3) as usize {
+                if let Err(e) = texture.update(None, &frame, (phone_width * 3) as usize) {
+                    eprintln!("Texture update error: {}", e);
+                } else {
+                    let (win_width, win_height) = canvas.window().size();
+                    let display_rect = calculate_display_rect(win_width, win_height, phone_width, phone_height);
+                    canvas.set_draw_color(sdl2::pixels::Color::BLACK);
+                    canvas.clear();
+                    if let Err(e) = canvas.copy(&texture, None, Some(display_rect)) {
+                        eprintln!("Canvas copy error: {}", e);
                     }
-                    Err(e) => eprintln!("Failed to decode PNG: {}", e),
+                    canvas.present();
                 }
+            } else {
+                eprintln!("Frame size mismatch, expected {}, got {}", phone_width * phone_height * 3, frame.len());
+            }
+
+            if frame_count % 30 == 0 {
+                let elapsed = start_time.elapsed();
+                let fps = frame_count as f32 / elapsed.as_secs_f32();
+                println!("Rendered frames: {}, FPS: {:.2}", frame_count, fps);
             }
         }
 
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit { .. } => { 
-                    println!("\nSDL2 window closed. Sending shutdown signal...");
-                    let _ = shutdown_tx.send(true); // Send shutdown signal
+                Event::Quit { .. } => {
+                    println!("Window closed, sending shutdown signal...");
+                    let _ = shutdown_tx.send(true);
                     break 'running;
                 }
-                Event::Window { win_event, .. } => match win_event {
-                    sdl2::event::WindowEvent::Resized(w, h) => {
+                Event::Window { win_event, .. } => {
+                    if let sdl2::event::WindowEvent::Resized(w, h) = win_event {
                         let display_rect = calculate_display_rect(w as u32, h as u32, phone_width, phone_height);
                         canvas.set_draw_color(sdl2::pixels::Color::BLACK);
                         canvas.clear();
                         canvas.copy(&texture, None, Some(display_rect))?;
                         canvas.present();
                     }
-                    _ => {}
-                },
+                }
                 _ => {}
             }
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
+
     Ok(())
 }
 
