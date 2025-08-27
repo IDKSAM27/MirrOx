@@ -1,11 +1,8 @@
-// use std::fs::*;
 use std::fs;
-// use std::fs::File;
 use std::path::Path;
 use crate::utils::*;
-use std::io::{self, Write};
-use std::process::Command;
-// use std::fmt::Display;
+use std::io::{self, Write, Read, BufReader, BufRead};
+use std::process::{Command, Stdio, Child};
 
 // Represents a connected ADB device with its state.
 #[derive(Debug, Clone)]
@@ -17,6 +14,81 @@ pub struct AdbDevice {
     pub model: String, // Device model name
     pub uptime: String, // Device uptime
     pub battery_level: String, // Device battery %
+}
+
+pub struct AdbShell {
+    process: Child,
+    device_id: String,
+}
+
+impl AdbShell {
+    pub fn new(device_id: &str) -> Result<Self, String> {
+        let mut process = Command::new("adb")
+            .args(["-s", device_id, "shell"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to start ADB shell: {}", e))?;
+        
+        // Give the shell a moment to start
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        
+        Ok(AdbShell { 
+            process, 
+            device_id: device_id.to_string() 
+        })
+    }
+    
+    pub fn capture_screen_raw(&mut self) -> Result<Vec<u8>, String> {
+        // Use direct screencap command for raw framebuffer data
+        let output = Command::new("adb")
+            .args(["-s", &self.device_id, "exec-out", "screencap"])
+            .output()
+            .map_err(|e| format!("Failed to capture screen: {}", e))?;
+        
+        if !output.status.success() {
+            return Err(format!(
+                "Screen capture failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+        
+        Ok(output.stdout)
+    }
+    
+    pub fn get_screen_info(&mut self) -> Result<(u32, u32), String> {
+        let output = Command::new("adb")
+            .args(["-s", &self.device_id, "shell", "wm", "size"])
+            .output()
+            .map_err(|e| format!("Failed to get screen info: {}", e))?;
+        
+        if output.status.success() {
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            // Parse output like "Physical size: 1080x2400"
+            if let Some(size_line) = output_str.lines().find(|line| line.contains("Physical size:")) {
+                if let Some(size_part) = size_line.split(':').nth(1) {
+                    let dimensions: Vec<&str> = size_part.trim().split('x').collect();
+                    if dimensions.len() == 2 {
+                        if let (Ok(width), Ok(height)) = 
+                            (dimensions[0].parse::<u32>(), dimensions[1].parse::<u32>()) {
+                            return Ok((width, height));
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Fallback to common resolution
+        Ok((1080, 2400))
+    }
+}
+
+impl Drop for AdbShell {
+    fn drop(&mut self) {
+        let _ = self.process.kill();
+        let _ = self.process.wait();
+    }
 }
 
 // Checks if ADB is installed and accessible.
@@ -46,7 +118,6 @@ pub fn list_devices() -> Result<Vec<AdbDevice>, String> {   // fn function() -> 
     if output.status.success() {
         let output_str = String::from_utf8_lossy(&output.stdout);
         let mut devices = Vec::new();
-
         log::debug!("Raw ADB output:\n{}", output_str); // NEW SHIT
 
         // Parse ADB output
@@ -106,7 +177,6 @@ pub fn get_connected_devices() -> Result<Vec<String>, String> {
         }
 
         if devices.is_empty() {
-            // Err("No devices found.2".to_string())
             Err("".to_string())
         } else {
             Ok(devices)
